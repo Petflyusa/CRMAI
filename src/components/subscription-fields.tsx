@@ -59,6 +59,14 @@ export function SubscriptionFields({
 
   const listInCur = service ? servicePriceIn(service, cur, rates) : null;
 
+  /** 换币种时：如果金额还是标价，就换算成新币种的标价；手填的金额保持不动 */
+  function onCurrency(next: Currency) {
+    if (service && listInCur != null && Number(paid) === listInCur) {
+      setPaid(String(servicePriceIn(service, next, rates)));
+    }
+    setCur(next);
+  }
+
   const result = useMemo(() => {
     const p = Number(paid);
     if (paid === "" || !Number.isFinite(p)) return null;
@@ -153,7 +161,7 @@ export function SubscriptionFields({
               name="paid_currency"
               className="input num w-[92px] shrink-0 rounded-r-none border-r-0"
               value={cur}
-              onChange={(e) => setCur(e.target.value as Currency)}
+              onChange={(e) => onCurrency(e.target.value as Currency)}
             >
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>

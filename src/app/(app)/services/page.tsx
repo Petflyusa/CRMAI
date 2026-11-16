@@ -28,8 +28,8 @@ function MoneyInput({
   required?: boolean;
 }) {
   return (
-    <div>
-      <label className="field-label">{label}</label>
+    <div role="group" aria-label={label}>
+      <span className="field-label">{label}</span>
       <div className="flex">
         <select
           name={currencyName}
@@ -43,6 +43,7 @@ function MoneyInput({
         </select>
         <input
           name={name}
+          aria-label={`${label}金额`}
           inputMode="decimal"
           required={required}
           defaultValue={amount ?? ""}
@@ -58,10 +59,10 @@ function ServiceFields({ service }: { service?: Service }) {
   return (
     <>
       {service && <input type="hidden" name="id" value={service.id} />}
-      <div>
-        <label className="field-label">服务名称</label>
+      <label className="block">
+        <span className="field-label">服务名称</span>
         <input name="name" required className="input" defaultValue={service?.name} />
-      </div>
+      </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <MoneyInput
           name="price"
@@ -79,8 +80,8 @@ function ServiceFields({ service }: { service?: Service }) {
           currency={service?.cost_currency}
         />
       </div>
-      <div>
-        <label className="field-label">有效期（天）</label>
+      <label className="block">
+        <span className="field-label">有效期（天）</span>
         <input
           name="duration_days"
           type="number"
@@ -89,12 +90,12 @@ function ServiceFields({ service }: { service?: Service }) {
           className="input num"
           defaultValue={service?.duration_days ?? 365}
         />
-        <p className="mt-1.5 text-[12px] text-ink-3">录入会员时按此天数自动计算到期日，例如月卡 30、年卡 365</p>
-      </div>
-      <div>
-        <label className="field-label">说明</label>
+        <span className="mt-1.5 block text-[12px] text-ink-3">录入会员时按此天数自动计算到期日，例如月卡 30、年卡 365</span>
+      </label>
+      <label className="block">
+        <span className="field-label">说明</span>
         <textarea name="description" className="input" defaultValue={service?.description ?? ""} />
-      </div>
+      </label>
       <label className="flex items-center gap-2 text-[13px] text-ink-2">
         <input
           type="checkbox"
@@ -118,7 +119,7 @@ export default async function ServicesPage() {
         title="服务"
         description={`价格和成本可用任意币种录入，系统按实时汇率折算 · 折算列以 ${display} 展示`}
         actions={
-          <FormDialog title="新增服务" trigger="新增服务" action={saveService}>
+          <FormDialog title="新增服务" trigger="新增服务" action={saveService} submitLabel="保存服务">
             <ServiceFields />
           </FormDialog>
         }

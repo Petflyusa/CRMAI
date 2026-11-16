@@ -1,18 +1,38 @@
 "use client";
 
+import { startTransition, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { ActionState } from "@/lib/types";
+
+type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
+
+/**
+ * React 19 用 <form action> 提交后会自动清空表单，出错时用户要重填。
+ * 这里改用 onSubmit 手动提交，表单内容保持不变。
+ */
+export function useActionForm(action: Action) {
+  const [state, dispatch, pending] = useActionState(action, undefined);
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => dispatch(fd));
+  };
+  return { state, onSubmit, pending };
+}
 
 export function SubmitButton({
   children,
   pendingText = "保存中…",
   className = "btn btn-primary",
+  pending: pendingProp,
 }: {
   children: React.ReactNode;
   pendingText?: string;
   className?: string;
+  pending?: boolean;
 }) {
-  const { pending } = useFormStatus();
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
   return (
     <button type="submit" className={className} disabled={pending}>
       {pending ? pendingText : children}

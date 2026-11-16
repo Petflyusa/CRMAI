@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { ActionState } from "@/lib/types";
-import { FormMessage, SubmitButton } from "./form-bits";
+import { FormMessage, SubmitButton, useActionForm } from "./form-bits";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
 
@@ -12,17 +12,19 @@ export function FormDialog({
   trigger,
   triggerClass = "btn btn-primary",
   action,
+  submitLabel = "保存",
   children,
 }: {
   title: string;
   trigger: React.ReactNode;
   triggerClass?: string;
   action: Action;
+  submitLabel?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction] = useActionState(action, undefined);
+  const { state, onSubmit, pending } = useActionForm(action);
 
   useEffect(() => {
     if (state?.ok) {
@@ -43,7 +45,7 @@ export function FormDialog({
           if (e.target === ref.current) ref.current?.close();
         }}
       >
-        <form ref={formRef} action={formAction}>
+        <form ref={formRef} onSubmit={onSubmit}>
           <div className="flex items-center justify-between border-b border-line px-5 py-4">
             <h2 className="text-[15px] font-semibold">{title}</h2>
             <button
@@ -61,7 +63,7 @@ export function FormDialog({
             <button type="button" className="btn btn-ghost" onClick={() => ref.current?.close()}>
               取消
             </button>
-            <SubmitButton>保存</SubmitButton>
+            <SubmitButton pending={pending}>{submitLabel}</SubmitButton>
           </div>
         </form>
       </dialog>

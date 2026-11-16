@@ -17,24 +17,24 @@ function StoreFields({ store }: { store?: Store }) {
   return (
     <>
       {store && <input type="hidden" name="id" value={store.id} />}
-      <div>
-        <label className="field-label">门店名称</label>
+      <label className="block">
+        <span className="field-label">门店名称</span>
         <input name="name" required className="input" defaultValue={store?.name} />
-      </div>
+      </label>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="field-label">地址</label>
+        <label className="block">
+          <span className="field-label">地址</span>
           <input name="address" className="input" defaultValue={store?.address ?? ""} />
-        </div>
-        <div>
-          <label className="field-label">电话</label>
+        </label>
+        <label className="block">
+          <span className="field-label">电话</span>
           <input name="phone" className="input" defaultValue={store?.phone ?? ""} />
-        </div>
+        </label>
       </div>
-      <div>
-        <label className="field-label">备注</label>
+      <label className="block">
+        <span className="field-label">备注</span>
         <textarea name="notes" className="input" defaultValue={store?.notes ?? ""} />
-      </div>
+      </label>
       <label className="flex items-center gap-2 text-[13px] text-ink-2">
         <input
           type="checkbox"
@@ -75,7 +75,7 @@ export default async function StoresPage() {
         title="门店"
         description={`会员可在不同门店充值，收入按付款所在门店统计 · 金额以 ${display} 展示`}
         actions={
-          <FormDialog title="新增门店" trigger="新增门店" action={saveStore}>
+          <FormDialog title="新增门店" trigger="新增门店" action={saveStore} submitLabel="保存门店">
             <StoreFields />
           </FormDialog>
         }

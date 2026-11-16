@@ -98,9 +98,10 @@ export async function createMember(_prev: ActionState, fd: FormData): Promise<Ac
 }
 
 export async function updateMember(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  let id: string;
   try {
     const supabase = await createClient();
-    const id = reqStr(fd, "id", "会员");
+    id = reqStr(fd, "id", "会员");
     const member = readMember(fd);
 
     const { data: clash } = await supabase
@@ -137,7 +138,7 @@ export async function updateMember(_prev: ActionState, fd: FormData): Promise<Ac
     return { error: errorMessage(e) };
   }
   revalidateAll();
-  return { ok: "已保存" };
+  redirect(`/members/${id}?saved=1`);
 }
 
 export async function renewMember(_prev: ActionState, fd: FormData): Promise<ActionState> {

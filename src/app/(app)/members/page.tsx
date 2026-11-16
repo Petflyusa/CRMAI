@@ -111,7 +111,62 @@ export default async function MembersPage({
             }
           />
         ) : (
-          <table className="table min-w-[980px]">
+          <>
+          {/* 手机：卡片列表 */}
+          <ul className="divide-y divide-line md:hidden">
+            {rows.map((m) => (
+              <li key={m.id} className="px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/members/${m.id}`} className="block truncate font-medium hover:underline">
+                      {m.email}
+                    </Link>
+                    <p className="text-[12px] text-ink-3">
+                      {[m.name, m.service_name, m.store_name].filter(Boolean).join(" · ") || "—"}
+                    </p>
+                  </div>
+                  <StatusPill status={m.status} endDate={m.end_date} />
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
+                  <div>
+                    <dt className="text-ink-3">到期</dt>
+                    <dd className="num">{formatDate(m.end_date)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-3">实付</dt>
+                    <dd>
+                      {m.paid_currency ? <Money value={Number(m.paid_amount)} currency={m.paid_currency} /> : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-3">利润</dt>
+                    <dd>
+                      <Profit value={shown(m.profit_usd)} currency={display} />
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex items-center gap-2">
+                  <Link href={`/members/${m.id}/renew`} className="btn btn-secondary btn-sm">
+                    续费
+                  </Link>
+                  <Link href={`/members/${m.id}`} className="btn btn-ghost btn-sm">
+                    编辑
+                  </Link>
+                  <div className="ml-auto">
+                    <ConfirmForm
+                      action={deleteMember}
+                      fields={{ id: m.id }}
+                      message={`确定删除会员 ${m.email}？其所有充值记录也会一并删除，无法恢复。`}
+                    >
+                      删除
+                    </ConfirmForm>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {/* 平板和电脑：表格 */}
+          <table className="table hidden min-w-[980px] md:table">
             <thead>
               <tr>
                 <th>会员</th>
@@ -183,6 +238,7 @@ export default async function MembersPage({
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
     </>

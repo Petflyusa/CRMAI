@@ -1,13 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
 import { signIn } from "@/app/actions/system";
-import { FormMessage, SubmitButton } from "@/components/form-bits";
+import { FormMessage, SubmitButton, useActionForm } from "@/components/form-bits";
 
 export function LoginForm() {
-  const [state, action] = useActionState(signIn, undefined);
+  const { state, onSubmit, pending } = useActionForm(signIn);
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       <div>
         <label className="field-label" htmlFor="email">
           邮箱
@@ -28,7 +27,7 @@ export function LoginForm() {
         />
       </div>
       <FormMessage state={state} />
-      <SubmitButton className="btn btn-primary w-full" pendingText="登录中…">
+      <SubmitButton pending={pending} className="btn btn-primary w-full" pendingText="登录中…">
         登录
       </SubmitButton>
     </form>

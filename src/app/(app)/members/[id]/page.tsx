@@ -15,7 +15,7 @@ export default async function MemberPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ renewed?: string }>;
+  searchParams: Promise<{ renewed?: string; saved?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -29,6 +29,21 @@ export default async function MemberPage({
 
   const current = subs.find((s) => s.id === member.subscription_id) ?? null;
   const status = memberStatus(member.end_date);
+  const defaults = current
+    ? {
+        service_id: current.service_id ?? "",
+        store_id: current.store_id ?? "",
+        start_date: current.start_date,
+        end_date: current.end_date,
+        paid_at: current.paid_at,
+        paid_amount: String(current.paid_amount),
+        paid_currency: current.paid_currency,
+        cost_usd: String(current.cost_usd),
+        sub_notes: current.notes ?? "",
+      }
+    : null;
+  // 数据一变（删除付款、续费、保存）就重建表单，避免表单仍显示旧订阅的数值而覆盖到别的记录
+  const formKey = JSON.stringify([member.email, member.name, member.phone, member.notes, current?.id, defaults]);
 
   return (
     <>
@@ -62,8 +77,10 @@ export default async function MemberPage({
       />
 
       {sp.renewed && <Notice>续费成功，新的到期日为 {formatDate(member.end_date)}</Notice>}
+      {sp.saved && <Notice>修改已保存</Notice>}
 
       <EditMemberForm
+        key={formKey}
         action={updateMember}
         member={member}
         subscriptionId={current?.id ?? null}
@@ -71,21 +88,7 @@ export default async function MemberPage({
         stores={selectableStores(stores, current?.store_id)}
         rates={current?.fx_snapshot.rates ?? { USD: 1, CAD: 1, CNY: 1 }}
         rateDate={current?.fx_snapshot.date ?? ""}
-        defaults={
-          current
-            ? {
-                service_id: current.service_id ?? "",
-                store_id: current.store_id ?? "",
-                start_date: current.start_date,
-                end_date: current.end_date,
-                paid_at: current.paid_at,
-                paid_amount: String(current.paid_amount),
-                paid_currency: current.paid_currency,
-                cost_usd: String(current.cost_usd),
-                sub_notes: current.notes ?? "",
-              }
-            : null
-        }
+        defaults={defaults}
       />
 
       <section className="mt-10">

@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
 import type { Rates } from "@/lib/currency";
 import type { ActionState, Member, Service, Store } from "@/lib/types";
-import { FormMessage, SubmitButton } from "./form-bits";
+import { FormMessage, SubmitButton, useActionForm } from "./form-bits";
 import { SubscriptionFields, type SubscriptionDefaults } from "./subscription-fields";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
@@ -61,9 +60,9 @@ export function NewMemberForm(props: {
   rateDate: string;
   defaults: SubscriptionDefaults;
 }) {
-  const [state, action] = useActionState(props.action, undefined);
+  const { state, onSubmit, pending } = useActionForm(props.action);
   return (
-    <form action={action} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <Section title="会员信息">
         <MemberFields />
       </Section>
@@ -76,7 +75,7 @@ export function NewMemberForm(props: {
           defaults={props.defaults}
         />
       </Section>
-      <FormFooter state={state} cancelHref="/members" submit="创建会员" />
+      <FormFooter state={state} pending={pending} cancelHref="/members" submit="创建会员" />
     </form>
   );
 }
@@ -92,9 +91,9 @@ export function EditMemberForm(props: {
   rateDate: string;
   defaults: SubscriptionDefaults | null;
 }) {
-  const [state, action] = useActionState(props.action, undefined);
+  const { state, onSubmit, pending } = useActionForm(props.action);
   return (
-    <form action={action} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="id" value={props.member.id} />
       {props.subscriptionId && <input type="hidden" name="subscription_id" value={props.subscriptionId} />}
       <Section title="会员信息">
@@ -116,7 +115,7 @@ export function EditMemberForm(props: {
           </label>
         </Section>
       )}
-      <FormFooter state={state} cancelHref="/members" submit="保存修改" />
+      <FormFooter state={state} pending={pending} cancelHref="/members" submit="保存修改" />
     </form>
   );
 }
@@ -131,9 +130,9 @@ export function RenewForm(props: {
   rateDate: string;
   defaults: SubscriptionDefaults;
 }) {
-  const [state, action] = useActionState(props.action, undefined);
+  const { state, onSubmit, pending } = useActionForm(props.action);
   return (
-    <form action={action} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="member_id" value={props.memberId} />
       <Section title="续费信息" hint="开始日期默认接在上一期到期日之后，可修改">
         <SubscriptionFields
@@ -144,12 +143,22 @@ export function RenewForm(props: {
           defaults={props.defaults}
         />
       </Section>
-      <FormFooter state={state} cancelHref={`/members/${props.memberId}`} submit="确认续费" />
+      <FormFooter state={state} pending={pending} cancelHref={`/members/${props.memberId}`} submit="确认续费" />
     </form>
   );
 }
 
-function FormFooter({ state, cancelHref, submit }: { state: ActionState; cancelHref: string; submit: string }) {
+function FormFooter({
+  state,
+  pending,
+  cancelHref,
+  submit,
+}: {
+  state: ActionState;
+  pending: boolean;
+  cancelHref: string;
+  submit: string;
+}) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <div className="mr-auto">
@@ -158,7 +167,7 @@ function FormFooter({ state, cancelHref, submit }: { state: ActionState; cancelH
       <Link href={cancelHref} className="btn btn-ghost">
         取消
       </Link>
-      <SubmitButton>{submit}</SubmitButton>
+      <SubmitButton pending={pending}>{submit}</SubmitButton>
     </div>
   );
 }
