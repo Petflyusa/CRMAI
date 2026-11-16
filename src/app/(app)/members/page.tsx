@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { deleteMember } from "@/app/actions/members";
 import { ActionMenu, type MenuItem } from "@/components/action-menu";
-import { closeHrefOf, NewMemberDialog, RenewDialog } from "@/components/member-dialogs";
+import { closeHrefOf, EditMemberDialog, NewMemberDialog, RenewDialog } from "@/components/member-dialogs";
 import { SecretReveal } from "@/components/secret";
-import { Empty, Money, Notice, PageHeader, Profit, StatusPill } from "@/components/ui";
+import { DaysLeft, Empty, Money, Notice, PageHeader, Profit } from "@/components/ui";
 import { convert, type Currency } from "@/lib/currency";
 import { listMembers, listStores } from "@/lib/data";
-import { formatDate, memberStatus, type MemberStatus } from "@/lib/dates";
+import { daysBetween, formatDate, memberStatus, today, type MemberStatus } from "@/lib/dates";
 import { emailUser, storeAbbr } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
@@ -22,7 +22,39 @@ const STATUS_FILTERS: { value: "" | MemberStatus; label: string }[] = [
   { value: "expired", label: "已过期" },
 ];
 
-type SP = { q?: string; store?: string; status?: string; created?: string; renewed?: string; new?: string; renew?: string };
+type SortKey = "member" | "days" | "first" | "renewal" | "profit";
+const SORT_KEYS: SortKey[] = ["member", "days", "first", "renewal", "profit"];
+/** 第一次点击时的方向：天数从少到多，金额从高到低 */
+const FIRST_DIR: Record<SortKey, "asc" | "desc"> = {
+  member: "asc",
+  days: "asc",
+  first: "desc",
+  renewal: "desc",
+  profit: "desc",
+};
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "默认排序（最新录入）" },
+  { value: "days:asc", label: "剩余天数 少 → 多" },
+  { value: "days:desc", label: "剩余天数 多 → 少" },
+  { value: "profit:desc", label: "累计利润 高 → 低" },
+  { value: "first:desc", label: "首付 高 → 低" },
+  { value: "renewal:desc", label: "续费 高 → 低" },
+  { value: "member:asc", label: "会员 A → Z" },
+];
+
+type SP = {
+  q?: string;
+  store?: string;
+  status?: string;
+  sort?: string;
+  dir?: string;
+  created?: string;
+  renewed?: string;
+  saved?: string;
+  new?: string;
+  renew?: string;
+  edit?: string;
+};
 
 function withParam(base: string, key: string, value: string) {
   return `${base}${base.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
@@ -30,6 +62,12 @@ function withParam(base: string, key: string, value: string) {
 
 export default async function MembersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
+  // 手机端排序下拉提交的是 sort=days:asc 这种组合值
+  if (sp.sort?.includes(":")) {
+    const [k, d] = sp.sort.split(":");
+    sp.sort = k;
+    sp.dir = d;
+  }
   const [members, stores, fx, display] = await Promise.all([
     listMembers(),
     listStores(),
@@ -38,9 +76,17 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   ]);
 
   const here = closeHrefOf("/members", sp);
+  const d = today();
+  const sortKey = SORT_KEYS.includes(sp.sort as SortKey) ? (sp.sort as SortKey) : null;
+  const dir = sp.dir === "desc" ? "desc" : sp.dir === "asc" ? "asc" : sortKey ? FIRST_DIR[sortKey] : "asc";
+
   const q = (sp.q ?? "").trim().toLowerCase();
   const rows = members
-    .map((m) => ({ ...m, status: memberStatus(m.end_date) }))
+    .map((m) => ({
+      ...m,
+      status: memberStatus(m.end_date, d),
+      daysLeft: m.end_date ? daysBetween(d, m.end_date) : null,
+    }))
     .filter(
       (m) =>
         !q ||
@@ -51,19 +97,69 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     .filter((m) => !sp.store || m.store_id === sp.store)
     .filter((m) => !sp.status || m.status === sp.status);
 
+  if (sortKey) {
+    const value = (m: (typeof rows)[number]): number | string | null => {
+      switch (sortKey) {
+        case "member":
+          return m.email.toLowerCase();
+        case "days":
+          return m.daysLeft;
+        case "first":
+          return m.first_paid_usd == null ? null : Number(m.first_paid_usd);
+        case "renewal":
+          return m.renewal_usd == null ? null : Number(m.renewal_usd);
+        case "profit":
+          return Number(m.total_profit_usd ?? 0);
+      }
+    };
+    const sign = dir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      const va = value(a);
+      const vb = value(b);
+      // 没有数据的排在最后
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return (va < vb ? -1 : va > vb ? 1 : 0) * sign;
+    });
+  }
+
   const shown = (usd: number | null) => (usd == null ? null : convert(Number(usd), "USD", display, fx.rates));
-  const statusHref = (status: string) => {
+
+  const listHref = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    if (sp.q) p.set("q", sp.q);
-    if (sp.store) p.set("store", sp.store);
-    if (status) p.set("status", status);
+    const merged = { q: sp.q, store: sp.store, status: sp.status, sort: sortKey ?? undefined, dir: sortKey ? dir : undefined, ...patch };
+    for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     const s = p.toString();
     return s ? `/members?${s}` : "/members";
   };
 
+  const sortHref = (key: SortKey) => {
+    if (sortKey !== key) return listHref({ sort: key, dir: FIRST_DIR[key] });
+    // 再点一次反向；第三次取消排序
+    if (dir === FIRST_DIR[key]) return listHref({ sort: key, dir: dir === "asc" ? "desc" : "asc" });
+    return listHref({ sort: undefined, dir: undefined });
+  };
+
+  const SortTh = ({ k, children, right }: { k: SortKey; children: React.ReactNode; right?: boolean }) => {
+    const active = sortKey === k;
+    return (
+      <th className={right ? "text-right" : undefined} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
+        <Link
+          href={sortHref(k)}
+          scroll={false}
+          className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-ink ${active ? "text-ink" : ""}`}
+        >
+          {children}
+          <span className={`text-[10px] ${active ? "" : "opacity-30"}`}>{active ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
+        </Link>
+      </th>
+    );
+  };
+
   const menu = (m: MemberOverview): MenuItem[] => [
     { kind: "link", label: "续费", href: withParam(here, "renew", m.id) },
-    { kind: "link", label: "编辑", href: `/members/${m.id}` },
+    { kind: "link", label: "编辑", href: withParam(here, "edit", m.id) },
     {
       kind: "delete",
       label: "删除",
@@ -88,6 +184,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     );
 
   const renewedMember = sp.renewed ? members.find((m) => m.id === sp.renewed) : null;
+  const savedMember = sp.saved ? members.find((m) => m.id === sp.saved) : null;
 
   return (
     <>
@@ -107,6 +204,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           {emailUser(renewedMember.email)} 续费成功，新的到期日为 {formatDate(renewedMember.end_date)}
         </Notice>
       )}
+      {savedMember && <Notice>{emailUser(savedMember.email)} 的修改已保存</Notice>}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <form className="flex flex-wrap items-center gap-2" action="/members">
@@ -125,6 +223,19 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
               </option>
             ))}
           </select>
+          {/* 手机上没有表头，用下拉排序；电脑上隐藏但仍随表单提交，保留当前排序 */}
+          <select
+            name="sort"
+            defaultValue={sortKey ? `${sortKey}:${dir}` : ""}
+            className="input w-[200px] md:hidden"
+            aria-label="排序"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           {sp.status && <input type="hidden" name="status" value={sp.status} />}
           <button className="btn btn-secondary">筛选</button>
         </form>
@@ -132,7 +243,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           {STATUS_FILTERS.map((f) => (
             <Link
               key={f.value}
-              href={statusHref(f.value)}
+              href={listHref({ status: f.value || undefined })}
               className={`rounded-md px-2.5 py-1.5 text-[13px] ${
                 (sp.status ?? "") === f.value ? "bg-ink text-surface" : "text-ink-2 hover:bg-sunken"
               }`}
@@ -173,13 +284,9 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                           .join(" · ") || "—"}
                       </p>
                     </div>
-                    <StatusPill status={m.status} endDate={m.end_date} />
+                    <DaysLeft endDate={m.end_date} className="text-[13px]" />
                   </div>
                   <dl className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-                    <div>
-                      <dt className="text-ink-3">到期</dt>
-                      <dd className="num">{formatDate(m.end_date)}</dd>
-                    </div>
                     <div>
                       <dt className="text-ink-3">首付</dt>
                       <dd>
@@ -200,6 +307,12 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                         )}
                       </dd>
                     </div>
+                    <div>
+                      <dt className="text-ink-3">累计利润</dt>
+                      <dd>
+                        <Profit value={shown(m.total_profit_usd)} currency={display} />
+                      </dd>
+                    </div>
                   </dl>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="text-[12px]">
@@ -212,17 +325,23 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
               ))}
             </ul>
             {/* 平板和电脑：表格 */}
-            <table className="data-table hidden min-w-[920px] md:table">
+            <table className="data-table hidden min-w-[880px] md:table">
               <thead>
                 <tr>
-                  <th>会员</th>
+                  <SortTh k="member">会员</SortTh>
                   <th>初始密码</th>
                   <th>服务</th>
                   <th>门店</th>
-                  <th>有效期</th>
-                  <th className="text-right">首付</th>
-                  <th className="text-right">续费</th>
-                  <th className="text-right">累计利润</th>
+                  <SortTh k="days">剩余天数</SortTh>
+                  <SortTh k="first" right>
+                    首付
+                  </SortTh>
+                  <SortTh k="renewal" right>
+                    续费
+                  </SortTh>
+                  <SortTh k="profit" right>
+                    累计利润
+                  </SortTh>
                   <th className="w-px" />
                 </tr>
               </thead>
@@ -248,12 +367,8 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                     <td className="whitespace-nowrap text-ink-2" title={m.store_name ?? undefined}>
                       {storeAbbr(m.store_name, m.store_code) ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap">
-                      <div className="num text-[13px]">
-                        <span className="text-ink-3">{formatDate(m.start_date)} – </span>
-                        {formatDate(m.end_date)}
-                      </div>
-                      <StatusPill status={m.status} endDate={m.end_date} />
+                    <td>
+                      <DaysLeft endDate={m.end_date} />
                     </td>
                     <td className="whitespace-nowrap text-right">
                       {amount(m.first_paid_amount, m.first_paid_currency, m.first_paid_usd)}
@@ -284,7 +399,8 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
       </div>
 
       {sp.new && <NewMemberDialog closeHref={here} />}
-      {sp.renew && <RenewDialog key={sp.renew} memberId={sp.renew} closeHref={here} />}
+      {sp.renew && <RenewDialog key={`r${sp.renew}`} memberId={sp.renew} closeHref={here} />}
+      {sp.edit && <EditMemberDialog key={`e${sp.edit}`} memberId={sp.edit} closeHref={here} />}
     </>
   );
 }

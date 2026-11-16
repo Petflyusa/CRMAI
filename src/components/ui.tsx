@@ -1,5 +1,5 @@
 import { formatMoney, type Currency } from "@/lib/currency";
-import { daysBetween, today, type MemberStatus } from "@/lib/dates";
+import { daysBetween, EXPIRING_DAYS, today, type MemberStatus } from "@/lib/dates";
 
 export function PageHeader({
   title,
@@ -37,6 +37,24 @@ export function StatusPill({ status, endDate }: { status: MemberStatus; endDate?
     >
       {s.label}
       {status === "expiring" && left != null && <span className="num">· {left}天</span>}
+    </span>
+  );
+}
+
+/** 剩余天数：有效显示「N 天」，即将到期标黄，已过期显示「已过期 N 天」 */
+export function DaysLeft({ endDate, className = "" }: { endDate: string | null | undefined; className?: string }) {
+  if (!endDate) return <span className={`text-ink-3 ${className}`}>—</span>;
+  const left = daysBetween(today(), endDate);
+  if (left < 0)
+    return (
+      <span className={`num whitespace-nowrap text-loss ${className}`} title={`到期日 ${endDate}`}>
+        已过期 {-left} 天
+      </span>
+    );
+  const tone = left <= EXPIRING_DAYS ? "text-warn" : "text-ink";
+  return (
+    <span className={`num whitespace-nowrap font-medium ${tone} ${className}`} title={`到期日 ${endDate}`}>
+      {left === 0 ? "今天到期" : `${left} 天`}
     </span>
   );
 }

@@ -71,8 +71,7 @@ function returnPath(fd: FormData, fallback: string) {
 function withParam(path: string, key: string, value: string) {
   const [base, query = ""] = path.split("?");
   const p = new URLSearchParams(query);
-  p.delete("renew");
-  p.delete("new");
+  for (const k of ["renew", "new", "edit", "saved", "renewed", "created"]) p.delete(k);
   p.set(key, value);
   return `${base}?${p.toString()}`;
 }
@@ -116,9 +115,11 @@ export async function createMember(_prev: ActionState, fd: FormData): Promise<Ac
 
 export async function updateMember(_prev: ActionState, fd: FormData): Promise<ActionState> {
   let id: string;
+  let back: string;
   try {
     const supabase = await createClient();
     id = reqStr(fd, "id", "会员");
+    back = returnPath(fd, `/members/${id}`);
     const member = readMember(fd);
 
     const { data: clash } = await supabase
@@ -155,7 +156,7 @@ export async function updateMember(_prev: ActionState, fd: FormData): Promise<Ac
     return { error: errorMessage(e) };
   }
   revalidateAll();
-  redirect(`/members/${id}?saved=1`);
+  redirect(withParam(back, "saved", id));
 }
 
 export async function renewMember(_prev: ActionState, fd: FormData): Promise<ActionState> {

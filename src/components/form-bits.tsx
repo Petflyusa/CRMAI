@@ -1,8 +1,9 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { ActionState } from "@/lib/types";
+import { ConfirmDialog } from "./confirm-dialog";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
 
@@ -73,26 +74,13 @@ export function ConfirmForm({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        if (!window.confirm(message)) e.preventDefault();
-      }}
-    >
-      {Object.entries(fields).map(([k, v]) => (
-        <input key={k} type="hidden" name={k} value={v} />
-      ))}
-      <DeleteButton className={className}>{children}</DeleteButton>
-    </form>
-  );
-}
-
-function DeleteButton({ children, className }: { children: React.ReactNode; className: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" className={className} disabled={pending}>
-      {pending ? "删除中…" : children}
-    </button>
+    <>
+      <button type="button" className={className} onClick={() => setOpen(true)}>
+        {children}
+      </button>
+      {open && <ConfirmDialog message={message} action={action} fields={fields} onClose={() => setOpen(false)} />}
+    </>
   );
 }

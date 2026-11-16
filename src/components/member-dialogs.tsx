@@ -1,12 +1,19 @@
 import "server-only";
 import Link from "next/link";
-import { createMember, renewMember } from "@/app/actions/members";
-import { getMember, listServices, listStores, selectableServices, selectableStores } from "@/lib/data";
+import { createMember, renewMember, updateMember } from "@/app/actions/members";
+import {
+  getMember,
+  listServices,
+  listStores,
+  listSubscriptions,
+  selectableServices,
+  selectableStores,
+} from "@/lib/data";
 import { addDays, formatDate, today } from "@/lib/dates";
 import { emailUser } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { serviceCostUsd } from "@/lib/pricing";
-import { NewMemberForm, RenewForm } from "./member-form";
+import { EditMemberForm, NewMemberForm, RenewForm } from "./member-form";
 import { RouteDialog } from "./route-dialog";
 import { Notice } from "./ui";
 
@@ -14,7 +21,7 @@ import { Notice } from "./ui";
 export function closeHrefOf(path: string, sp: Record<string, string | undefined>) {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (v && !["new", "renew", "created", "renewed", "saved"].includes(k)) p.set(k, v);
+    if (v && !["new", "renew", "edit", "created", "renewed", "saved"].includes(k)) p.set(k, v);
   }
   const s = p.toString();
   return s ? `${path}?${s}` : path;
@@ -56,6 +63,52 @@ export async function NewMemberDialog({ closeHref }: { closeHref: string }) {
           cost_usd: "",
           sub_notes: "",
         }}
+      />
+    </RouteDialog>
+  );
+}
+
+export async function EditMemberDialog({ memberId, closeHref }: { memberId: string; closeHref: string }) {
+  const [member, subs, services, stores] = await Promise.all([
+    getMember(memberId),
+    listSubscriptions({ memberId }),
+    listServices(),
+    listStores(),
+  ]);
+  if (!member) return null;
+  const current = subs.find((s) => s.id === member.subscription_id) ?? null;
+  const defaults = current
+    ? {
+        service_id: current.service_id ?? "",
+        store_id: current.store_id ?? "",
+        start_date: current.start_date,
+        end_date: current.end_date,
+        paid_at: current.paid_at,
+        paid_amount: String(current.paid_amount),
+        paid_currency: current.paid_currency,
+        cost_usd: String(current.cost_usd),
+        sub_notes: current.notes ?? "",
+      }
+    : null;
+
+  return (
+    <RouteDialog
+      title={`编辑 · ${emailUser(member.email)}`}
+      description="修改会员信息和当前这一期订阅"
+      closeHref={closeHref}
+      wide
+    >
+      <EditMemberForm
+        action={updateMember}
+        member={member}
+        subscriptionId={current?.id ?? null}
+        subscriptionKind={current?.kind ?? null}
+        services={selectableServices(services, current?.service_id)}
+        stores={selectableStores(stores, current?.store_id)}
+        rates={current?.fx_snapshot.rates ?? { USD: 1, CAD: 1, CNY: 1 }}
+        rateDate={current?.fx_snapshot.date ?? ""}
+        defaults={defaults}
+        closeHref={closeHref}
       />
     </RouteDialog>
   );

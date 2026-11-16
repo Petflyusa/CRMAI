@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { MonthChart } from "@/components/month-chart";
-import { Empty, Money, PageHeader, Profit, StatusPill } from "@/components/ui";
+import { DaysLeft, Empty, Money, PageHeader, Profit } from "@/components/ui";
 import { CURRENCIES, CURRENCY_META, convert, formatMoney, type Currency } from "@/lib/currency";
 import { listMembers, listStores, listSubscriptions } from "@/lib/data";
-import { daysBetween, formatDate, lastMonths, memberStatus, monthKey, today } from "@/lib/dates";
+import { daysBetween, lastMonths, memberStatus, monthKey, today } from "@/lib/dates";
 import { emailUser, storeAbbr } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
@@ -245,9 +245,8 @@ export default async function DashboardPage() {
                         {m.service_name ?? "—"} · {storeAbbr(m.store_name, m.store_code) ?? "未指定门店"}
                       </div>
                     </td>
-                    <td className="text-right">
-                      <div className="num text-[13px]">{formatDate(m.end_date)}</div>
-                      <StatusPill status={m.status} endDate={m.end_date} />
+                    <td className="text-right text-[13px]">
+                      <DaysLeft endDate={m.end_date} />
                     </td>
                     <td className="w-px">
                       <Link href={`/members?renew=${m.id}`} className="btn btn-secondary btn-sm">

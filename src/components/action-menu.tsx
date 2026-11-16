@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import { ConfirmDialog } from "./confirm-dialog";
 
 export type MenuItem =
   | { kind: "link"; label: string; href: string }
@@ -12,6 +13,7 @@ export type MenuItem =
  */
 export function ActionMenu({ items, label = "操作" }: { items: MenuItem[]; label?: string }) {
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const [confirming, setConfirming] = useState<Extract<MenuItem, { kind: "delete" }> | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -90,24 +92,29 @@ export function ActionMenu({ items, label = "操作" }: { items: MenuItem[]; lab
                 {it.label}
               </Link>
             ) : (
-              <form
+              <button
                 key={it.label}
-                action={it.action}
-                onSubmit={(e) => {
-                  if (!window.confirm(it.confirm)) e.preventDefault();
-                  else setTimeout(() => setPos(null));
+                type="button"
+                role="menuitem"
+                className={`${itemCls} text-loss`}
+                onClick={() => {
+                  setPos(null);
+                  setConfirming(it);
                 }}
               >
-                {Object.entries(it.fields).map(([k, v]) => (
-                  <input key={k} type="hidden" name={k} value={v} />
-                ))}
-                <button type="submit" role="menuitem" className={`${itemCls} text-loss`}>
-                  {it.label}
-                </button>
-              </form>
+                {it.label}
+              </button>
             ),
           )}
         </div>
+      )}
+      {confirming && (
+        <ConfirmDialog
+          message={confirming.confirm}
+          action={confirming.action}
+          fields={confirming.fields}
+          onClose={() => setConfirming(null)}
+        />
       )}
     </>
   );

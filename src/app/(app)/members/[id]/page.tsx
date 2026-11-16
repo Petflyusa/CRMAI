@@ -1,73 +1,50 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { deleteMember, deleteSubscription, updateMember } from "@/app/actions/members";
+import { deleteMember, deleteSubscription } from "@/app/actions/members";
 import { ConfirmForm } from "@/components/form-bits";
-import { EditMemberForm } from "@/components/member-form";
-import { Money, Notice, PageHeader, Profit, StatusPill } from "@/components/ui";
-import { getMember, listServices, listStores, listSubscriptions, selectableServices, selectableStores } from "@/lib/data";
-import { RenewDialog } from "@/components/member-dialogs";
-import { formatDate, memberStatus } from "@/lib/dates";
+import { EditMemberDialog, RenewDialog } from "@/components/member-dialogs";
+import { SecretReveal } from "@/components/secret";
+import { DaysLeft, Money, Notice, PageHeader, Profit } from "@/components/ui";
+import { getMember, listSubscriptions } from "@/lib/data";
+import { formatDate } from "@/lib/dates";
 import { emailUser, storeAbbr } from "@/lib/display";
 
 export const metadata: Metadata = { title: "会员详情" };
+
+function Info({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={wide ? "sm:col-span-2 lg:col-span-4" : undefined}>
+      <dt className="text-[12px] text-ink-3">{label}</dt>
+      <dd className="mt-1 text-[14px] break-words">{children}</dd>
+    </div>
+  );
+}
 
 export default async function MemberPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ renewed?: string; saved?: string; renew?: string }>;
+  searchParams: Promise<{ renewed?: string; saved?: string; renew?: string; edit?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const [member, subs, services, stores] = await Promise.all([
-    getMember(id),
-    listSubscriptions({ memberId: id }),
-    listServices(),
-    listStores(),
-  ]);
+  const [member, subs] = await Promise.all([getMember(id), listSubscriptions({ memberId: id })]);
   if (!member) notFound();
 
-  const current = subs.find((s) => s.id === member.subscription_id) ?? null;
-  const status = memberStatus(member.end_date);
-  const defaults = current
-    ? {
-        service_id: current.service_id ?? "",
-        store_id: current.store_id ?? "",
-        start_date: current.start_date,
-        end_date: current.end_date,
-        paid_at: current.paid_at,
-        paid_amount: String(current.paid_amount),
-        paid_currency: current.paid_currency,
-        cost_usd: String(current.cost_usd),
-        sub_notes: current.notes ?? "",
-      }
-    : null;
-  // 数据一变（删除付款、续费、保存）就重建表单，避免表单仍显示旧订阅的数值而覆盖到别的记录
-  const formKey = JSON.stringify([
-    member.email,
-    member.name,
-    member.phone,
-    member.im,
-    member.initial_password,
-    member.notes,
-    current?.id,
-    defaults,
-  ]);
+  const here = `/members/${member.id}`;
+  const dash = <span className="text-ink-3">—</span>;
 
   return (
     <>
       <PageHeader
         title={emailUser(member.email)}
         description={
-          <span className="inline-flex flex-wrap items-center gap-2">
-            <StatusPill status={status} endDate={member.end_date} />
-            <span>
-              {member.subscription_count - member.renewal_count} 次新开 · {member.renewal_count} 次续费 · 累计实付{" "}
-              <Money value={Number(member.total_paid_usd)} currency="USD" /> · 累计利润{" "}
-              <Profit value={Number(member.total_profit_usd)} currency="USD" />
-            </span>
+          <span>
+            {member.subscription_count - member.renewal_count} 次新开 · {member.renewal_count} 次续费 · 累计实付{" "}
+            <Money value={Number(member.total_paid_usd)} currency="USD" /> · 累计利润{" "}
+            <Profit value={Number(member.total_profit_usd)} currency="USD" />
           </span>
         }
         actions={
@@ -80,7 +57,10 @@ export default async function MemberPage({
             >
               删除会员
             </ConfirmForm>
-            <Link href={`/members/${member.id}?renew=1`} scroll={false} className="btn btn-primary">
+            <Link href={`${here}?edit=1`} scroll={false} className="btn btn-secondary">
+              编辑
+            </Link>
+            <Link href={`${here}?renew=1`} scroll={false} className="btn btn-primary">
               续费
             </Link>
           </>
@@ -90,18 +70,30 @@ export default async function MemberPage({
       {sp.renewed && <Notice>续费成功，新的到期日为 {formatDate(member.end_date)}</Notice>}
       {sp.saved && <Notice>修改已保存</Notice>}
 
-      <EditMemberForm
-        key={formKey}
-        action={updateMember}
-        member={member}
-        subscriptionId={current?.id ?? null}
-        subscriptionKind={current?.kind ?? null}
-        services={selectableServices(services, current?.service_id)}
-        stores={selectableStores(stores, current?.store_id)}
-        rates={current?.fx_snapshot.rates ?? { USD: 1, CAD: 1, CNY: 1 }}
-        rateDate={current?.fx_snapshot.date ?? ""}
-        defaults={defaults}
-      />
+      <section className="panel p-5 sm:p-6">
+        <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Info label="剩余天数">
+            <DaysLeft endDate={member.end_date} className="text-[18px]" />
+          </Info>
+          <Info label="当前服务">{member.service_name ?? dash}</Info>
+          <Info label="门店">
+            <span title={member.store_name ?? undefined}>{storeAbbr(member.store_name, member.store_code) ?? dash}</span>
+          </Info>
+          <Info label="到期日">
+            <span className="num">{formatDate(member.end_date)}</span>
+          </Info>
+          <Info label="邮箱">{member.email}</Info>
+          <Info label="姓名">{member.name ?? dash}</Info>
+          <Info label="电话">{member.phone ?? dash}</Info>
+          <Info label="IM 联系方式">{member.im ?? dash}</Info>
+          <Info label="初始密码">
+            <SecretReveal value={member.initial_password} />
+          </Info>
+          <Info label="备注" wide>
+            {member.notes ?? dash}
+          </Info>
+        </dl>
+      </section>
 
       <section className="mt-10">
         <h2 className="mb-3 text-[15px] font-semibold">付款记录</h2>
@@ -162,7 +154,8 @@ export default async function MemberPage({
         </div>
       </section>
 
-      {sp.renew && <RenewDialog memberId={member.id} closeHref={`/members/${member.id}`} />}
+      {sp.renew && <RenewDialog memberId={member.id} closeHref={here} />}
+      {sp.edit && <EditMemberDialog memberId={member.id} closeHref={here} />}
     </>
   );
 }

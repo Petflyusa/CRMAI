@@ -155,7 +155,7 @@ export function NewMemberForm(props: {
   );
 }
 
-/** 编辑会员：会员信息 + 当前订阅 */
+/** 编辑会员：会员信息 + 当前订阅（弹窗） */
 export function EditMemberForm(props: {
   action: Action;
   member: Member;
@@ -166,20 +166,24 @@ export function EditMemberForm(props: {
   rates: Rates;
   rateDate: string;
   defaults: SubscriptionDefaults | null;
+  closeHref: string;
 }) {
   const { state, onSubmit, pending } = useActionForm(props.action);
   const renewal = props.subscriptionKind === "renewal";
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-7">
       <input type="hidden" name="id" value={props.member.id} />
+      <input type="hidden" name="return_to" value={props.closeHref} />
       {props.subscriptionId && <input type="hidden" name="subscription_id" value={props.subscriptionId} />}
-      <Section title="会员信息">
+      <Section title="会员信息" bare>
         <MemberFields member={props.member} />
       </Section>
+      {props.defaults && <div className="border-t border-line" />}
       {props.defaults && (
         <Section
           title={renewal ? "当前订阅 · 最近一次续费" : "当前订阅"}
           hint="修改金额时默认沿用这笔付款当时的汇率"
+          bare
         >
           <SubscriptionFields
             services={props.services}
@@ -196,7 +200,7 @@ export function EditMemberForm(props: {
           </label>
         </Section>
       )}
-      <FormFooter state={state} pending={pending} cancelHref="/members" submit="保存修改" />
+      <FormFooter state={state} pending={pending} cancelHref={props.closeHref} submit="保存修改" />
     </form>
   );
 }
