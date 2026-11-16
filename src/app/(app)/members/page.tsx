@@ -244,8 +244,8 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                     <td className="whitespace-nowrap">
                       <SecretReveal value={m.initial_password} />
                     </td>
-                    <td className="text-ink-2">{m.service_name ?? "—"}</td>
-                    <td className="text-ink-2" title={m.store_name ?? undefined}>
+                    <td className="whitespace-nowrap text-ink-2">{m.service_name ?? "—"}</td>
+                    <td className="whitespace-nowrap text-ink-2" title={m.store_name ?? undefined}>
                       {storeAbbr(m.store_name, m.store_code) ?? "—"}
                     </td>
                     <td className="whitespace-nowrap">
@@ -255,8 +255,10 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                       </div>
                       <StatusPill status={m.status} endDate={m.end_date} />
                     </td>
-                    <td className="text-right">{amount(m.first_paid_amount, m.first_paid_currency, m.first_paid_usd)}</td>
-                    <td className="text-right">
+                    <td className="whitespace-nowrap text-right">
+                      {amount(m.first_paid_amount, m.first_paid_currency, m.first_paid_usd)}
+                    </td>
+                    <td className="whitespace-nowrap text-right">
                       {amount(m.renewal_amount, m.renewal_currency, m.renewal_usd)}
                       {m.renewed_at && (
                         <div className="num text-[12px] text-ink-3">
