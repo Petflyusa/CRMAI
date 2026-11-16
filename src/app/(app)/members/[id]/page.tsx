@@ -94,7 +94,7 @@ export default async function MemberPage({
       <section className="mt-10">
         <h2 className="mb-3 text-[15px] font-semibold">付款记录</h2>
         <div className="panel overflow-x-auto">
-          <table className="table min-w-[860px]">
+          <table className="data-table min-w-[860px]">
             <thead>
               <tr>
                 <th>支付日期</th>

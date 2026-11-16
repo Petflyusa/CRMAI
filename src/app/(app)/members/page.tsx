@@ -166,7 +166,7 @@ export default async function MembersPage({
             ))}
           </ul>
           {/* 平板和电脑：表格 */}
-          <table className="table hidden min-w-[980px] md:table">
+          <table className="data-table hidden min-w-[980px] md:table">
             <thead>
               <tr>
                 <th>会员</th>

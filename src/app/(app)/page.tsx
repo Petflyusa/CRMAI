@@ -194,7 +194,7 @@ export default async function DashboardPage() {
           {storeRows.length === 0 ? (
             <Empty title="暂无付款记录" />
           ) : (
-            <table className="table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>门店</th>
@@ -232,7 +232,7 @@ export default async function DashboardPage() {
           {expiring.length + recentlyExpired.length === 0 ? (
             <Empty title="近期没有到期的会员" />
           ) : (
-            <table className="table">
+            <table className="data-table">
               <tbody>
                 {[...expiring, ...recentlyExpired].slice(0, 8).map((m) => (
                   <tr key={m.id}>

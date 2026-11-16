@@ -85,7 +85,7 @@ export default async function StoresPage() {
         {stores.length === 0 ? (
           <Empty title="还没有门店" hint="添加门店后，录入会员时可以选择充值门店" />
         ) : (
-          <table className="table min-w-[820px]">
+          <table className="data-table min-w-[820px]">
             <thead>
               <tr>
                 <th>门店</th>

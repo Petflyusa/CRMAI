@@ -37,7 +37,7 @@ export default async function RatesPage() {
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <div className="panel overflow-x-auto">
-            <table className="table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>1 单位 →</th>
@@ -70,7 +70,7 @@ export default async function RatesPage() {
             <div className="px-4 pt-4 pb-1">
               <h2 className="text-[15px] font-semibold">抓取记录</h2>
             </div>
-            <table className="table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>抓取时间</th>

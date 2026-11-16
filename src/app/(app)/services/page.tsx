@@ -129,7 +129,7 @@ export default async function ServicesPage() {
         {services.length === 0 ? (
           <Empty title="还没有服务" hint="添加服务和价格后，就可以录入会员了" />
         ) : (
-          <table className="table min-w-[860px]">
+          <table className="data-table min-w-[860px]">
             <thead>
               <tr>
                 <th>服务</th>
