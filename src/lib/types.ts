@@ -3,6 +3,7 @@ import type { Currency, FxSnapshot } from "./currency";
 export type Store = {
   id: string;
   name: string;
+  code: string | null;
   address: string | null;
   phone: string | null;
   notes: string | null;
@@ -29,6 +30,8 @@ export type Member = {
   name: string | null;
   phone: string | null;
   notes: string | null;
+  im: string | null;
+  initial_password: string | null;
   created_at: string;
 };
 
@@ -54,10 +57,20 @@ export type Subscription = {
 
 export type MemberOverview = Member & {
   subscription_id: string | null;
+  subscription_kind: "new" | "renewal" | null;
   service_id: string | null;
   service_name: string | null;
   store_id: string | null;
   store_name: string | null;
+  store_code: string | null;
+  first_paid_amount: number | null;
+  first_paid_currency: Currency | null;
+  first_paid_usd: number | null;
+  renewal_amount: number | null;
+  renewal_currency: Currency | null;
+  renewal_usd: number | null;
+  renewed_at: string | null;
+  renewal_count: number;
   start_date: string | null;
   end_date: string | null;
   paid_at: string | null;

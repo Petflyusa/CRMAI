@@ -11,6 +11,7 @@ export async function saveStore(_prev: ActionState, fd: FormData): Promise<Actio
     const id = str(fd, "id");
     const row = {
       name: reqStr(fd, "name", "门店名称"),
+      code: str(fd, "code"),
       address: str(fd, "address"),
       phone: str(fd, "phone"),
       notes: str(fd, "notes"),

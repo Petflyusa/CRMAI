@@ -17,10 +17,23 @@ function StoreFields({ store }: { store?: Store }) {
   return (
     <>
       {store && <input type="hidden" name="id" value={store.id} />}
-      <label className="block">
-        <span className="field-label">门店名称</span>
-        <input name="name" required className="input" defaultValue={store?.name} />
-      </label>
+      <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+        <label className="block">
+          <span className="field-label">门店名称</span>
+          <input name="name" required className="input" defaultValue={store?.name} />
+        </label>
+        <label className="block">
+          <span className="field-label">缩写</span>
+          <input
+            name="code"
+            maxLength={10}
+            placeholder="如 TOR1"
+            className="input num"
+            defaultValue={store?.code ?? ""}
+          />
+        </label>
+      </div>
+      <p className="-mt-2 text-[12px] text-ink-3">会员列表等地方显示缩写，鼠标悬停可看全名</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">地址</span>
@@ -103,6 +116,11 @@ export default async function StoresPage() {
                 return (
                   <tr key={store.id}>
                     <td>
+                      {store.code && (
+                        <span className="num mr-2 rounded bg-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-2">
+                          {store.code}
+                        </span>
+                      )}
                       <Link href={`/members?store=${store.id}`} className="font-medium hover:underline">
                         {store.name}
                       </Link>

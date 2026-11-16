@@ -6,7 +6,9 @@ import { ConfirmForm } from "@/components/form-bits";
 import { EditMemberForm } from "@/components/member-form";
 import { Money, Notice, PageHeader, Profit, StatusPill } from "@/components/ui";
 import { getMember, listServices, listStores, listSubscriptions, selectableServices, selectableStores } from "@/lib/data";
+import { RenewDialog } from "@/components/member-dialogs";
 import { formatDate, memberStatus } from "@/lib/dates";
+import { emailUser, storeAbbr } from "@/lib/display";
 
 export const metadata: Metadata = { title: "会员详情" };
 
@@ -15,7 +17,7 @@ export default async function MemberPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ renewed?: string; saved?: string }>;
+  searchParams: Promise<{ renewed?: string; saved?: string; renew?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -43,17 +45,26 @@ export default async function MemberPage({
       }
     : null;
   // 数据一变（删除付款、续费、保存）就重建表单，避免表单仍显示旧订阅的数值而覆盖到别的记录
-  const formKey = JSON.stringify([member.email, member.name, member.phone, member.notes, current?.id, defaults]);
+  const formKey = JSON.stringify([
+    member.email,
+    member.name,
+    member.phone,
+    member.im,
+    member.initial_password,
+    member.notes,
+    current?.id,
+    defaults,
+  ]);
 
   return (
     <>
       <PageHeader
-        title={member.email}
+        title={emailUser(member.email)}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
             <StatusPill status={status} endDate={member.end_date} />
             <span>
-              共 {member.subscription_count} 次付款 · 累计实付{" "}
+              {member.subscription_count - member.renewal_count} 次新开 · {member.renewal_count} 次续费 · 累计实付{" "}
               <Money value={Number(member.total_paid_usd)} currency="USD" /> · 累计利润{" "}
               <Profit value={Number(member.total_profit_usd)} currency="USD" />
             </span>
@@ -69,7 +80,7 @@ export default async function MemberPage({
             >
               删除会员
             </ConfirmForm>
-            <Link href={`/members/${member.id}/renew`} className="btn btn-primary">
+            <Link href={`/members/${member.id}?renew=1`} scroll={false} className="btn btn-primary">
               续费
             </Link>
           </>
@@ -84,6 +95,7 @@ export default async function MemberPage({
         action={updateMember}
         member={member}
         subscriptionId={current?.id ?? null}
+        subscriptionKind={current?.kind ?? null}
         services={selectableServices(services, current?.service_id)}
         stores={selectableStores(stores, current?.store_id)}
         rates={current?.fx_snapshot.rates ?? { USD: 1, CAD: 1, CNY: 1 }}
@@ -102,7 +114,7 @@ export default async function MemberPage({
                 <th>服务</th>
                 <th>门店</th>
                 <th>有效期</th>
-                <th className="text-right">实付</th>
+                <th className="text-right">金额</th>
                 <th className="text-right">折合 USD</th>
                 <th className="text-right">利润 USD</th>
                 <th className="w-px" />
@@ -114,7 +126,9 @@ export default async function MemberPage({
                   <td className="num">{formatDate(s.paid_at)}</td>
                   <td className="text-ink-2">{s.kind === "renewal" ? "续费" : "新开"}</td>
                   <td className="text-ink-2">{s.service_name ?? "—"}</td>
-                  <td className="text-ink-2">{s.store_name ?? "—"}</td>
+                  <td className="text-ink-2" title={s.store_name ?? undefined}>
+                    {storeAbbr(s.store_name, s.store_code) ?? "—"}
+                  </td>
                   <td className="num text-ink-2">
                     {formatDate(s.start_date)} – {formatDate(s.end_date)}
                   </td>
@@ -147,6 +161,8 @@ export default async function MemberPage({
           </table>
         </div>
       </section>
+
+      {sp.renew && <RenewDialog memberId={member.id} closeHref={`/members/${member.id}`} />}
     </>
   );
 }

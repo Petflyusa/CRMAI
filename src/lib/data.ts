@@ -33,19 +33,23 @@ export async function getMember(id: string) {
   return check<MemberOverview | null>(await supabase.from("member_overview").select("*").eq("id", id).maybeSingle());
 }
 
-export type SubscriptionRow = Subscription & { service_name: string | null; store_name: string | null };
+export type SubscriptionRow = Subscription & {
+  service_name: string | null;
+  store_name: string | null;
+  store_code: string | null;
+};
 
 export async function listSubscriptions(filter: { memberId?: string } = {}) {
   const supabase = await createClient();
   let q = supabase
     .from("subscriptions")
-    .select("*, services(name), stores(name)")
+    .select("*, services(name), stores(name, code)")
     .order("paid_at", { ascending: false })
     .order("created_at", { ascending: false });
   if (filter.memberId) q = q.eq("member_id", filter.memberId);
-  const rows = check<(Subscription & { services: { name: string } | null; stores: { name: string } | null })[]>(
-    await q,
-  );
+  const rows = check<
+    (Subscription & { services: { name: string } | null; stores: { name: string; code: string | null } | null })[]
+  >(await q);
   return rows.map(({ services, stores, ...s }) => ({
     ...s,
     paid_amount: Number(s.paid_amount),
@@ -55,6 +59,7 @@ export async function listSubscriptions(filter: { memberId?: string } = {}) {
     list_price_usd: s.list_price_usd == null ? null : Number(s.list_price_usd),
     service_name: services?.name ?? null,
     store_name: stores?.name ?? null,
+    store_code: stores?.code ?? null,
   })) as SubscriptionRow[];
 }
 

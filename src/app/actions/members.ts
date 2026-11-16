@@ -19,7 +19,7 @@ async function readSubscription(fd: FormData, rates: Rates, supabase: Supabase) 
   const end_date = date(fd, "end_date", "到期日期");
   if (end_date < start_date) throw new FormError("到期日期不能早于开始日期");
   const paid_at = str(fd, "paid_at") ?? today();
-  const paid_amount = num(fd, "paid_amount", "实付金额", { min: 0 })!;
+  const paid_amount = num(fd, "paid_amount", fd.get("kind") === "renewal" ? "续费金额" : "实付金额", { min: 0 })!;
   const paid_currency = currency(fd, "paid_currency");
 
   let service: Pick<Service, "price" | "price_currency" | "cost" | "cost_currency"> | null = null;
@@ -56,8 +56,25 @@ function readMember(fd: FormData) {
     email: email(fd),
     name: str(fd, "name"),
     phone: str(fd, "phone"),
+    im: str(fd, "im"),
+    initial_password: str(fd, "initial_password"),
     notes: str(fd, "notes"),
   };
+}
+
+/** 只接受站内路径，避免被拼成外部跳转 */
+function returnPath(fd: FormData, fallback: string) {
+  const v = fd.get("return_to");
+  return typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : fallback;
+}
+
+function withParam(path: string, key: string, value: string) {
+  const [base, query = ""] = path.split("?");
+  const p = new URLSearchParams(query);
+  p.delete("renew");
+  p.delete("new");
+  p.set(key, value);
+  return `${base}?${p.toString()}`;
 }
 
 function revalidateAll() {
@@ -143,9 +160,11 @@ export async function updateMember(_prev: ActionState, fd: FormData): Promise<Ac
 
 export async function renewMember(_prev: ActionState, fd: FormData): Promise<ActionState> {
   let memberId: string;
+  let back: string;
   try {
     const supabase = await createClient();
     memberId = reqStr(fd, "member_id", "会员");
+    back = returnPath(fd, `/members/${memberId}`);
     const fx = await getRates();
     const sub = await readSubscription(fd, fx.rates, supabase);
     const { error } = await supabase
@@ -156,7 +175,7 @@ export async function renewMember(_prev: ActionState, fd: FormData): Promise<Act
     return { error: errorMessage(e) };
   }
   revalidateAll();
-  redirect(`/members/${memberId}?renewed=1`);
+  redirect(withParam(back, "renewed", memberId));
 }
 
 export async function deleteMember(fd: FormData) {

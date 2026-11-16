@@ -1,17 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { Rates } from "@/lib/currency";
 import type { ActionState, Member, Service, Store } from "@/lib/types";
 import { FormMessage, SubmitButton, useActionForm } from "./form-bits";
+import { EyeIcon } from "./secret";
 import { SubscriptionFields, type SubscriptionDefaults } from "./subscription-fields";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  hint,
+  bare,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  /** 弹窗里不再套一层卡片 */
+  bare?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="panel p-5 sm:p-6">
-      <div className="mb-5">
+    <section className={bare ? "" : "panel p-5 sm:p-6"}>
+      <div className={bare ? "mb-4" : "mb-5"}>
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {hint && <p className="mt-0.5 text-[12px] text-ink-3">{hint}</p>}
       </div>
@@ -20,10 +33,57 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
+const PW_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+function generatePassword(len = 10) {
+  const bytes = crypto.getRandomValues(new Uint32Array(len));
+  return Array.from(bytes, (b) => PW_CHARS[b % PW_CHARS.length]).join("");
+}
+
+function PasswordField({ defaultValue }: { defaultValue?: string | null }) {
+  const [value, setValue] = useState(defaultValue ?? "");
+  const [show, setShow] = useState(!defaultValue);
+  return (
+    <div>
+      <label className="field-label" htmlFor="initial_password">
+        初始密码 <span className="font-normal text-ink-3">选填</span>
+      </label>
+      <div className="flex">
+        <input
+          id="initial_password"
+          name="initial_password"
+          type={show ? "text" : "password"}
+          autoComplete="off"
+          className="input num rounded-r-none"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary rounded-none border-l-0 px-2.5"
+          aria-label={show ? "隐藏密码" : "显示密码"}
+          onClick={() => setShow((v) => !v)}
+        >
+          <EyeIcon off={show} />
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary rounded-l-none border-l-0"
+          onClick={() => {
+            setValue(generatePassword());
+            setShow(true);
+          }}
+        >
+          生成
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function MemberFields({ member }: { member?: Partial<Member> }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <div>
+      <div className="sm:col-span-2">
         <label className="field-label" htmlFor="email">
           邮箱
         </label>
@@ -42,6 +102,19 @@ export function MemberFields({ member }: { member?: Partial<Member> }) {
         <input id="phone" name="phone" className="input" defaultValue={member?.phone ?? ""} />
       </div>
       <div>
+        <label className="field-label" htmlFor="im">
+          IM 联系方式 <span className="font-normal text-ink-3">选填</span>
+        </label>
+        <input
+          id="im"
+          name="im"
+          className="input"
+          placeholder="微信 / WhatsApp / Telegram 账号"
+          defaultValue={member?.im ?? ""}
+        />
+      </div>
+      <PasswordField defaultValue={member?.initial_password} />
+      <div className="sm:col-span-2">
         <label className="field-label" htmlFor="notes">
           会员备注 <span className="font-normal text-ink-3">选填</span>
         </label>
@@ -51,7 +124,7 @@ export function MemberFields({ member }: { member?: Partial<Member> }) {
   );
 }
 
-/** 新建会员：会员信息 + 首次订阅 */
+/** 新建会员：会员信息 + 首次订阅（弹窗） */
 export function NewMemberForm(props: {
   action: Action;
   services: Service[];
@@ -59,14 +132,16 @@ export function NewMemberForm(props: {
   rates: Rates;
   rateDate: string;
   defaults: SubscriptionDefaults;
+  closeHref: string;
 }) {
   const { state, onSubmit, pending } = useActionForm(props.action);
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
-      <Section title="会员信息">
+    <form onSubmit={onSubmit} className="space-y-7">
+      <Section title="会员信息" bare>
         <MemberFields />
       </Section>
-      <Section title="服务与付款" hint="利润 = 实付折合美元 − 成本，按当前汇率计算并保存快照">
+      <div className="border-t border-line" />
+      <Section title="服务与付款" hint="利润 = 实付折合美元 − 成本，按当前汇率计算并保存快照" bare>
         <SubscriptionFields
           services={props.services}
           stores={props.stores}
@@ -75,7 +150,7 @@ export function NewMemberForm(props: {
           defaults={props.defaults}
         />
       </Section>
-      <FormFooter state={state} pending={pending} cancelHref="/members" submit="创建会员" />
+      <FormFooter state={state} pending={pending} cancelHref={props.closeHref} submit="创建会员" />
     </form>
   );
 }
@@ -85,6 +160,7 @@ export function EditMemberForm(props: {
   action: Action;
   member: Member;
   subscriptionId: string | null;
+  subscriptionKind: "new" | "renewal" | null;
   services: Service[];
   stores: Store[];
   rates: Rates;
@@ -92,6 +168,7 @@ export function EditMemberForm(props: {
   defaults: SubscriptionDefaults | null;
 }) {
   const { state, onSubmit, pending } = useActionForm(props.action);
+  const renewal = props.subscriptionKind === "renewal";
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="id" value={props.member.id} />
@@ -100,7 +177,10 @@ export function EditMemberForm(props: {
         <MemberFields member={props.member} />
       </Section>
       {props.defaults && (
-        <Section title="当前订阅" hint="修改金额时默认沿用这笔付款当时的汇率">
+        <Section
+          title={renewal ? "当前订阅 · 最近一次续费" : "当前订阅"}
+          hint="修改金额时默认沿用这笔付款当时的汇率"
+        >
           <SubscriptionFields
             services={props.services}
             stores={props.stores}
@@ -108,6 +188,7 @@ export function EditMemberForm(props: {
             rateDate={props.rateDate}
             defaults={props.defaults}
             autoEnd={false}
+            kind={renewal ? "renewal" : "new"}
           />
           <label className="mt-5 flex items-center gap-2 text-[13px] text-ink-2">
             <input type="checkbox" name="recalc_fx" className="size-4 accent-[var(--color-accent)]" />
@@ -120,7 +201,7 @@ export function EditMemberForm(props: {
   );
 }
 
-/** 续费：仅订阅部分 */
+/** 续费：单独的续费金额与续费日期，不改动原来的付款（弹窗） */
 export function RenewForm(props: {
   action: Action;
   memberId: string;
@@ -129,21 +210,22 @@ export function RenewForm(props: {
   rates: Rates;
   rateDate: string;
   defaults: SubscriptionDefaults;
+  closeHref: string;
 }) {
   const { state, onSubmit, pending } = useActionForm(props.action);
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-6">
       <input type="hidden" name="member_id" value={props.memberId} />
-      <Section title="续费信息" hint="开始日期默认接在上一期到期日之后，可修改">
-        <SubscriptionFields
-          services={props.services}
-          stores={props.stores}
-          rates={props.rates}
-          rateDate={props.rateDate}
-          defaults={props.defaults}
-        />
-      </Section>
-      <FormFooter state={state} pending={pending} cancelHref={`/members/${props.memberId}`} submit="确认续费" />
+      <input type="hidden" name="return_to" value={props.closeHref} />
+      <SubscriptionFields
+        services={props.services}
+        stores={props.stores}
+        rates={props.rates}
+        rateDate={props.rateDate}
+        defaults={props.defaults}
+        kind="renewal"
+      />
+      <FormFooter state={state} pending={pending} cancelHref={props.closeHref} submit="确认续费" />
     </form>
   );
 }
@@ -164,7 +246,7 @@ function FormFooter({
       <div className="mr-auto">
         <FormMessage state={state} />
       </div>
-      <Link href={cancelHref} className="btn btn-ghost">
+      <Link href={cancelHref} scroll={false} className="btn btn-ghost">
         取消
       </Link>
       <SubmitButton pending={pending}>{submit}</SubmitButton>

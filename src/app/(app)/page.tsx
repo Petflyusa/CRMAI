@@ -4,6 +4,7 @@ import { Empty, Money, PageHeader, Profit, StatusPill } from "@/components/ui";
 import { CURRENCIES, CURRENCY_META, convert, formatMoney, type Currency } from "@/lib/currency";
 import { listMembers, listStores, listSubscriptions } from "@/lib/data";
 import { daysBetween, formatDate, lastMonths, memberStatus, monthKey, today } from "@/lib/dates";
+import { emailUser, storeAbbr } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
 
@@ -69,7 +70,7 @@ export default async function DashboardPage() {
     .sort((a, b) => (a.end_date! > b.end_date! ? -1 : 1));
 
   // 门店：本月 + 累计
-  const storeName = new Map(stores.map((s) => [s.id, s.name]));
+  const storeName = new Map(stores.map((s) => [s.id, storeAbbr(s.name, s.code)!]));
   const byStore = new Map<string, { month: number; profit: number; total: number }>();
   for (const s of subs) {
     const key = s.store_id ?? "";
@@ -105,7 +106,7 @@ export default async function DashboardPage() {
         title="概览"
         description={`${d.slice(0, 4)} 年 ${Number(d.slice(5, 7))} 月 · 金额以 ${CURRENCY_META[display].label}（${display}）展示，按 ${fx.date} 汇率折算`}
         actions={
-          <Link href="/members/new" className="btn btn-primary">
+          <Link href="/members?new=1" className="btn btn-primary">
             新增会员
           </Link>
         }
@@ -238,10 +239,10 @@ export default async function DashboardPage() {
                   <tr key={m.id}>
                     <td>
                       <Link href={`/members/${m.id}`} className="text-[13px] font-medium hover:underline">
-                        {m.email}
+                        {emailUser(m.email)}
                       </Link>
                       <div className="text-[12px] text-ink-3">
-                        {m.service_name ?? "—"} · {m.store_name ?? "未指定门店"}
+                        {m.service_name ?? "—"} · {storeAbbr(m.store_name, m.store_code) ?? "未指定门店"}
                       </div>
                     </td>
                     <td className="text-right">
@@ -249,7 +250,7 @@ export default async function DashboardPage() {
                       <StatusPill status={m.status} endDate={m.end_date} />
                     </td>
                     <td className="w-px">
-                      <Link href={`/members/${m.id}/renew`} className="btn btn-secondary btn-sm">
+                      <Link href={`/members?renew=${m.id}`} className="btn btn-secondary btn-sm">
                         续费
                       </Link>
                     </td>

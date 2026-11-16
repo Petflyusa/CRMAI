@@ -25,6 +25,7 @@ export function SubscriptionFields({
   rateDate,
   defaults,
   autoEnd = true,
+  kind = "new",
 }: {
   services: Service[];
   stores: Store[];
@@ -33,11 +34,18 @@ export function SubscriptionFields({
   defaults: SubscriptionDefaults;
   /** 新建/续费时根据服务时长自动推算到期日 */
   autoEnd?: boolean;
+  /** 续费：金额和日期单独标为「续费金额」「续费日期」，日期不跟随开始日期 */
+  kind?: "new" | "renewal";
 }) {
+  const renewal = kind === "renewal";
+  const amountLabel = renewal ? "续费金额" : "实付金额";
   const [serviceId, setServiceId] = useState(defaults.service_id);
   const [start, setStart] = useState(defaults.start_date);
   const [end, setEnd] = useState(defaults.end_date);
   const [endTouched, setEndTouched] = useState(!autoEnd);
+  const [paidAt, setPaidAt] = useState(defaults.paid_at);
+  // 新开：支付日期默认跟着开始日期走，手动改过后不再跟随
+  const [paidAtTouched, setPaidAtTouched] = useState(renewal || defaults.paid_at !== defaults.start_date);
   const [paid, setPaid] = useState(defaults.paid_amount);
   const [cur, setCur] = useState<Currency>(defaults.paid_currency);
   const [cost, setCost] = useState(defaults.cost_usd);
@@ -54,6 +62,7 @@ export function SubscriptionFields({
 
   function onStart(v: string) {
     setStart(v);
+    if (!paidAtTouched && v) setPaidAt(v);
     if (!endTouched && service && v) setEnd(addDays(v, service.duration_days));
   }
 
@@ -80,8 +89,9 @@ export function SubscriptionFields({
   }, [paid, cur, cost, service, rates]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
       <div className="grid gap-4 sm:grid-cols-2">
+        <input type="hidden" name="kind" value={kind} />
         <div className="sm:col-span-2">
           <label className="field-label" htmlFor="service_id">
             服务
@@ -111,7 +121,7 @@ export function SubscriptionFields({
             <option value="">未指定</option>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name}
+                {s.code ? `${s.code} · ${s.name}` : s.name}
               </option>
             ))}
           </select>
@@ -119,7 +129,7 @@ export function SubscriptionFields({
 
         <div>
           <label className="field-label" htmlFor="start_date">
-            开始日期
+            {renewal ? "新一期开始" : "开始日期"}
           </label>
           <input
             id="start_date"
@@ -153,11 +163,11 @@ export function SubscriptionFields({
 
         <div>
           <label className="field-label" htmlFor="paid_amount">
-            实付金额
+            {amountLabel}
           </label>
           <div className="flex">
             <select
-              aria-label="实付币种"
+              aria-label={`${amountLabel}币种`}
               name="paid_currency"
               className="input num w-[92px] shrink-0 rounded-r-none border-r-0"
               value={cur}
@@ -192,14 +202,19 @@ export function SubscriptionFields({
         </div>
         <div>
           <label className="field-label" htmlFor="paid_at">
-            支付日期
+            {renewal ? "续费日期" : "支付日期"}
+            {!renewal && !paidAtTouched && <span className="ml-1.5 font-normal text-ink-3">同开始日期</span>}
           </label>
           <input
             id="paid_at"
             name="paid_at"
             type="date"
             className="input num"
-            defaultValue={defaults.paid_at}
+            value={paidAt}
+            onChange={(e) => {
+              setPaidAt(e.target.value);
+              setPaidAtTouched(true);
+            }}
             required
           />
         </div>
@@ -227,7 +242,14 @@ export function SubscriptionFields({
         </div>
       </div>
 
-      <ProfitPreview result={result} paid={paid} cur={cur} rates={rates} rateDate={rateDate} />
+      <ProfitPreview
+        result={result}
+        paid={paid}
+        cur={cur}
+        rates={rates}
+        rateDate={rateDate}
+        amountLabel={renewal ? "续费" : "实付"}
+      />
     </div>
   );
 }
@@ -238,17 +260,19 @@ function ProfitPreview({
   cur,
   rates,
   rateDate,
+  amountLabel,
 }: {
   result: ReturnType<typeof computePrice> | null;
   paid: string;
   cur: Currency;
   rates: Rates;
   rateDate: string;
+  amountLabel: string;
 }) {
   const rows: [string, React.ReactNode][] = result
     ? [
         [
-          `实付（${CURRENCY_META[cur].label}）`,
+          `${amountLabel}（${CURRENCY_META[cur].label}）`,
           formatMoney(Number(paid), cur),
         ],
         ["折合美元", formatMoney(result.paidUsd, "USD")],
@@ -293,7 +317,7 @@ function ProfitPreview({
           )}
         </>
       ) : (
-        <p className="mt-4 text-[13px] text-ink-3">填写实付金额后显示</p>
+        <p className="mt-4 text-[13px] text-ink-3">填写{amountLabel}金额后显示</p>
       )}
       <p className="num mt-5 text-[11px] leading-relaxed text-ink-3">
         1 USD = {formatRate(rates.CAD)} CAD

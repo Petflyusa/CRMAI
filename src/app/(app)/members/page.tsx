@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { deleteMember } from "@/app/actions/members";
-import { ConfirmForm } from "@/components/form-bits";
+import { ActionMenu, type MenuItem } from "@/components/action-menu";
+import { closeHrefOf, NewMemberDialog, RenewDialog } from "@/components/member-dialogs";
+import { SecretReveal } from "@/components/secret";
 import { Empty, Money, Notice, PageHeader, Profit, StatusPill } from "@/components/ui";
-import { convert } from "@/lib/currency";
+import { convert, type Currency } from "@/lib/currency";
 import { listMembers, listStores } from "@/lib/data";
 import { formatDate, memberStatus, type MemberStatus } from "@/lib/dates";
+import { emailUser, storeAbbr } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
+import type { MemberOverview } from "@/lib/types";
 
 export const metadata: Metadata = { title: "会员" };
 
@@ -18,11 +22,13 @@ const STATUS_FILTERS: { value: "" | MemberStatus; label: string }[] = [
   { value: "expired", label: "已过期" },
 ];
 
-export default async function MembersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; store?: string; status?: string; created?: string }>;
-}) {
+type SP = { q?: string; store?: string; status?: string; created?: string; renewed?: string; new?: string; renew?: string };
+
+function withParam(base: string, key: string, value: string) {
+  return `${base}${base.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+}
+
+export default async function MembersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const [members, stores, fx, display] = await Promise.all([
     listMembers(),
@@ -31,10 +37,17 @@ export default async function MembersPage({
     getDisplayCurrency(),
   ]);
 
+  const here = closeHrefOf("/members", sp);
   const q = (sp.q ?? "").trim().toLowerCase();
   const rows = members
     .map((m) => ({ ...m, status: memberStatus(m.end_date) }))
-    .filter((m) => !q || m.email.toLowerCase().includes(q) || (m.name ?? "").toLowerCase().includes(q))
+    .filter(
+      (m) =>
+        !q ||
+        m.email.toLowerCase().includes(q) ||
+        (m.name ?? "").toLowerCase().includes(q) ||
+        (m.im ?? "").toLowerCase().includes(q),
+    )
     .filter((m) => !sp.store || m.store_id === sp.store)
     .filter((m) => !sp.status || m.status === sp.status);
 
@@ -48,26 +61,59 @@ export default async function MembersPage({
     return s ? `/members?${s}` : "/members";
   };
 
+  const menu = (m: MemberOverview): MenuItem[] => [
+    { kind: "link", label: "续费", href: withParam(here, "renew", m.id) },
+    { kind: "link", label: "编辑", href: `/members/${m.id}` },
+    {
+      kind: "delete",
+      label: "删除",
+      action: deleteMember,
+      fields: { id: m.id },
+      confirm: `确定删除会员 ${m.email}？其所有充值记录也会一并删除，无法恢复。`,
+    },
+  ];
+
+  const amount = (value: number | null, cur: Currency | null, usd: number | null) =>
+    cur && value != null ? (
+      <>
+        <Money value={Number(value)} currency={cur} />
+        {cur !== display && (
+          <div className="num text-[12px] text-ink-3">
+            ≈ <Money value={shown(usd)} currency={display} />
+          </div>
+        )}
+      </>
+    ) : (
+      <span className="text-ink-3">—</span>
+    );
+
+  const renewedMember = sp.renewed ? members.find((m) => m.id === sp.renewed) : null;
+
   return (
     <>
       <PageHeader
         title="会员"
         description={`共 ${members.length} 位会员 · 金额按 ${display} 展示，利润为美元口径折算`}
         actions={
-          <Link href="/members/new" className="btn btn-primary">
+          <Link href={withParam(here, "new", "1")} scroll={false} className="btn btn-primary">
             新增会员
           </Link>
         }
       />
 
       {sp.created && <Notice>会员已创建</Notice>}
+      {renewedMember && (
+        <Notice>
+          {emailUser(renewedMember.email)} 续费成功，新的到期日为 {formatDate(renewedMember.end_date)}
+        </Notice>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <form className="flex flex-wrap items-center gap-2" action="/members">
           <input
             name="q"
             defaultValue={sp.q}
-            placeholder="搜索邮箱或姓名"
+            placeholder="搜索邮箱、姓名或 IM"
             className="input w-[220px]"
             aria-label="搜索"
           />
@@ -75,7 +121,7 @@ export default async function MembersPage({
             <option value="">全部门店</option>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name}
+                {s.code ? `${s.code} · ${s.name}` : s.name}
               </option>
             ))}
           </select>
@@ -104,7 +150,7 @@ export default async function MembersPage({
             hint={members.length === 0 ? "先在「服务」里添加服务，再录入第一位会员" : undefined}
             action={
               members.length === 0 ? (
-                <Link href="/members/new" className="btn btn-primary">
+                <Link href={withParam(here, "new", "1")} scroll={false} className="btn btn-primary">
                   新增会员
                 </Link>
               ) : undefined
@@ -112,135 +158,130 @@ export default async function MembersPage({
           />
         ) : (
           <>
-          {/* 手机：卡片列表 */}
-          <ul className="divide-y divide-line md:hidden">
-            {rows.map((m) => (
-              <li key={m.id} className="px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link href={`/members/${m.id}`} className="block truncate font-medium hover:underline">
-                      {m.email}
-                    </Link>
-                    <p className="text-[12px] text-ink-3">
-                      {[m.name, m.service_name, m.store_name].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                  </div>
-                  <StatusPill status={m.status} endDate={m.end_date} />
-                </div>
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-                  <div>
-                    <dt className="text-ink-3">到期</dt>
-                    <dd className="num">{formatDate(m.end_date)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-ink-3">实付</dt>
-                    <dd>
-                      {m.paid_currency ? <Money value={Number(m.paid_amount)} currency={m.paid_currency} /> : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-ink-3">利润</dt>
-                    <dd>
-                      <Profit value={shown(m.profit_usd)} currency={display} />
-                    </dd>
-                  </div>
-                </dl>
-                <div className="mt-3 flex items-center gap-2">
-                  <Link href={`/members/${m.id}/renew`} className="btn btn-secondary btn-sm">
-                    续费
-                  </Link>
-                  <Link href={`/members/${m.id}`} className="btn btn-ghost btn-sm">
-                    编辑
-                  </Link>
-                  <div className="ml-auto">
-                    <ConfirmForm
-                      action={deleteMember}
-                      fields={{ id: m.id }}
-                      message={`确定删除会员 ${m.email}？其所有充值记录也会一并删除，无法恢复。`}
-                    >
-                      删除
-                    </ConfirmForm>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {/* 平板和电脑：表格 */}
-          <table className="data-table hidden min-w-[980px] md:table">
-            <thead>
-              <tr>
-                <th>会员</th>
-                <th>服务</th>
-                <th>门店</th>
-                <th>开始</th>
-                <th>到期</th>
-                <th className="text-right">实付</th>
-                <th className="text-right">利润</th>
-                <th className="w-px" />
-              </tr>
-            </thead>
-            <tbody>
+            {/* 手机：卡片列表 */}
+            <ul className="divide-y divide-line md:hidden">
               {rows.map((m) => (
-                <tr key={m.id}>
-                  <td>
-                    <Link href={`/members/${m.id}`} className="block font-medium hover:underline">
-                      {m.email}
-                    </Link>
-                    {m.name && <span className="text-[12px] text-ink-3">{m.name}</span>}
-                  </td>
-                  <td className="text-ink-2">{m.service_name ?? "—"}</td>
-                  <td className="text-ink-2">{m.store_name ?? "—"}</td>
-                  <td className="num text-ink-2">{formatDate(m.start_date)}</td>
-                  <td>
-                    <div className="num">{formatDate(m.end_date)}</div>
-                    <StatusPill status={m.status} endDate={m.end_date} />
-                  </td>
-                  <td className="text-right">
-                    {m.paid_currency ? (
-                      <>
-                        <Money value={Number(m.paid_amount)} currency={m.paid_currency} />
-                        {m.paid_currency !== display && (
-                          <div className="num text-[12px] text-ink-3">
-                            ≈ <Money value={shown(m.paid_usd)} currency={display} />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="text-right">
-                    <Profit value={shown(m.profit_usd)} currency={display} />
-                    {m.subscription_count > 1 && (
-                      <div className="text-[12px] text-ink-3">
-                        累计 <Money value={shown(m.total_profit_usd)} currency={display} />
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/members/${m.id}`} className="btn btn-ghost btn-sm">
-                        编辑
+                <li key={m.id} className="px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/members/${m.id}`} className="block truncate font-medium hover:underline">
+                        {emailUser(m.email)}
                       </Link>
-                      <Link href={`/members/${m.id}/renew`} className="btn btn-secondary btn-sm">
-                        续费
-                      </Link>
-                      <ConfirmForm
-                        action={deleteMember}
-                        fields={{ id: m.id }}
-                        message={`确定删除会员 ${m.email}？其所有充值记录也会一并删除，无法恢复。`}
-                      >
-                        删除
-                      </ConfirmForm>
+                      <p className="text-[12px] text-ink-3">
+                        {[m.name, m.im, m.service_name, storeAbbr(m.store_name, m.store_code)]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </p>
                     </div>
-                  </td>
-                </tr>
+                    <StatusPill status={m.status} endDate={m.end_date} />
+                  </div>
+                  <dl className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
+                    <div>
+                      <dt className="text-ink-3">到期</dt>
+                      <dd className="num">{formatDate(m.end_date)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-3">首付</dt>
+                      <dd>
+                        {m.first_paid_currency ? (
+                          <Money value={Number(m.first_paid_amount)} currency={m.first_paid_currency} />
+                        ) : (
+                          "—"
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-3">续费</dt>
+                      <dd>
+                        {m.renewal_currency ? (
+                          <Money value={Number(m.renewal_amount)} currency={m.renewal_currency} />
+                        ) : (
+                          "—"
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="text-[12px]">
+                      <span className="mr-1 text-ink-3">密码</span>
+                      <SecretReveal value={m.initial_password} />
+                    </div>
+                    <ActionMenu items={menu(m)} />
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+            {/* 平板和电脑：表格 */}
+            <table className="data-table hidden min-w-[1100px] md:table">
+              <thead>
+                <tr>
+                  <th>会员</th>
+                  <th>初始密码</th>
+                  <th>服务</th>
+                  <th>门店</th>
+                  <th>开始</th>
+                  <th>到期</th>
+                  <th className="text-right">首付</th>
+                  <th className="text-right">续费</th>
+                  <th className="text-right">累计利润</th>
+                  <th className="w-px" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <Link
+                        href={`/members/${m.id}`}
+                        className="block font-medium hover:underline"
+                        title={m.email}
+                      >
+                        {emailUser(m.email)}
+                      </Link>
+                      {(m.name || m.im) && (
+                        <span className="text-[12px] text-ink-3">{[m.name, m.im].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap">
+                      <SecretReveal value={m.initial_password} />
+                    </td>
+                    <td className="text-ink-2">{m.service_name ?? "—"}</td>
+                    <td className="text-ink-2" title={m.store_name ?? undefined}>
+                      {storeAbbr(m.store_name, m.store_code) ?? "—"}
+                    </td>
+                    <td className="num text-ink-2">{formatDate(m.start_date)}</td>
+                    <td>
+                      <div className="num">{formatDate(m.end_date)}</div>
+                      <StatusPill status={m.status} endDate={m.end_date} />
+                    </td>
+                    <td className="text-right">{amount(m.first_paid_amount, m.first_paid_currency, m.first_paid_usd)}</td>
+                    <td className="text-right">
+                      {amount(m.renewal_amount, m.renewal_currency, m.renewal_usd)}
+                      {m.renewed_at && (
+                        <div className="num text-[12px] text-ink-3">
+                          {formatDate(m.renewed_at)}
+                          {m.renewal_count > 1 && ` · 共 ${m.renewal_count} 次`}
+                        </div>
+                      )}
+                    </td>
+                    <td className="text-right">
+                      <Profit value={shown(m.total_profit_usd)} currency={display} />
+                    </td>
+                    <td>
+                      <div className="flex justify-end">
+                        <ActionMenu items={menu(m)} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         )}
       </div>
+
+      {sp.new && <NewMemberDialog closeHref={here} />}
+      {sp.renew && <RenewDialog key={sp.renew} memberId={sp.renew} closeHref={here} />}
     </>
   );
 }
