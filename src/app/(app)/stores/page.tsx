@@ -7,6 +7,7 @@ import { Empty, Money, PageHeader, Profit } from "@/components/ui";
 import { convert } from "@/lib/currency";
 import { listStores, listSubscriptions } from "@/lib/data";
 import { monthKey, today } from "@/lib/dates";
+import { storeAbbr } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
 import type { Store } from "@/lib/types";
@@ -17,23 +18,13 @@ function StoreFields({ store }: { store?: Store }) {
   return (
     <>
       {store && <input type="hidden" name="id" value={store.id} />}
-      <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
-        <label className="block">
-          <span className="field-label">门店名称</span>
-          <input name="name" required className="input" defaultValue={store?.name} />
-        </label>
-        <label className="block">
-          <span className="field-label">缩写</span>
-          <input
-            name="code"
-            maxLength={10}
-            placeholder="如 TOR1"
-            className="input num"
-            defaultValue={store?.code ?? ""}
-          />
-        </label>
-      </div>
-      <p className="-mt-2 text-[12px] text-ink-3">会员列表等地方显示缩写，鼠标悬停可看全名</p>
+      <label className="block">
+        <span className="field-label">门店名称</span>
+        <input name="name" required className="input" defaultValue={store?.name} />
+      </label>
+      <p className="-mt-2 text-[12px] text-ink-3">
+        缩写按名称首字母自动生成（如 Global Pet Service → GPS），会员列表里显示缩写，鼠标悬停可看全名
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">地址</span>
@@ -116,9 +107,9 @@ export default async function StoresPage() {
                 return (
                   <tr key={store.id}>
                     <td>
-                      {store.code && (
+                      {storeAbbr(store.name) !== store.name && (
                         <span className="num mr-2 rounded bg-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-2">
-                          {store.code}
+                          {storeAbbr(store.name)}
                         </span>
                       )}
                       <Link href={`/members?store=${store.id}`} className="font-medium hover:underline">

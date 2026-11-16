@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CURRENCIES, CURRENCY_META, formatMoney, formatRate, type Currency, type Rates } from "@/lib/currency";
 import { addDays } from "@/lib/dates";
+import { storeLabel } from "@/lib/display";
 import { computePrice, serviceCostUsd, servicePriceIn } from "@/lib/pricing";
 import type { Service, Store } from "@/lib/types";
 
@@ -121,7 +122,7 @@ export function SubscriptionFields({
             <option value="">未指定</option>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.code ? `${s.code} · ${s.name}` : s.name}
+                {storeLabel(s.name)}
               </option>
             ))}
           </select>

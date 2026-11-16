@@ -8,7 +8,7 @@ import { DaysLeft, Empty, Money, Notice, PageHeader, Profit } from "@/components
 import { convert, type Currency } from "@/lib/currency";
 import { listMembers, listStores } from "@/lib/data";
 import { daysBetween, formatDate, memberStatus, today, type MemberStatus } from "@/lib/dates";
-import { emailUser, storeAbbr } from "@/lib/display";
+import { emailUser, storeAbbr, storeLabel } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
 import type { MemberOverview } from "@/lib/types";
@@ -219,7 +219,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
             <option value="">全部门店</option>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.code ? `${s.code} · ${s.name}` : s.name}
+                {storeLabel(s.name)}
               </option>
             ))}
           </select>
@@ -279,7 +279,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                         {emailUser(m.email)}
                       </Link>
                       <p className="text-[12px] text-ink-3">
-                        {[m.name, m.im, m.service_name, storeAbbr(m.store_name, m.store_code)]
+                        {[m.name, m.im, m.service_name, storeAbbr(m.store_name)]
                           .filter(Boolean)
                           .join(" · ") || "—"}
                       </p>
@@ -365,7 +365,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                     </td>
                     <td className="whitespace-nowrap text-ink-2">{m.service_name ?? "—"}</td>
                     <td className="whitespace-nowrap text-ink-2" title={m.store_name ?? undefined}>
-                      {storeAbbr(m.store_name, m.store_code) ?? "—"}
+                      {storeAbbr(m.store_name) ?? "—"}
                     </td>
                     <td>
                       <DaysLeft endDate={m.end_date} />

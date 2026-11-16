@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { storeAbbr } from "@/lib/display";
 import { bool, currency, errorMessage, num, reqStr, str } from "@/lib/form";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/types";
@@ -9,9 +10,11 @@ export async function saveStore(_prev: ActionState, fd: FormData): Promise<Actio
   try {
     const supabase = await createClient();
     const id = str(fd, "id");
+    const name = reqStr(fd, "name", "门店名称");
     const row = {
-      name: reqStr(fd, "name", "门店名称"),
-      code: str(fd, "code"),
+      name,
+      // 缩写按名称自动生成，不需要手动填写
+      code: storeAbbr(name),
       address: str(fd, "address"),
       phone: str(fd, "phone"),
       notes: str(fd, "notes"),

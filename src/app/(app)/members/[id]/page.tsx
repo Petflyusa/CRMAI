@@ -77,7 +77,7 @@ export default async function MemberPage({
           </Info>
           <Info label="当前服务">{member.service_name ?? dash}</Info>
           <Info label="门店">
-            <span title={member.store_name ?? undefined}>{storeAbbr(member.store_name, member.store_code) ?? dash}</span>
+            <span title={member.store_name ?? undefined}>{storeAbbr(member.store_name) ?? dash}</span>
           </Info>
           <Info label="到期日">
             <span className="num">{formatDate(member.end_date)}</span>
@@ -119,7 +119,7 @@ export default async function MemberPage({
                   <td className="text-ink-2">{s.kind === "renewal" ? "续费" : "新开"}</td>
                   <td className="text-ink-2">{s.service_name ?? "—"}</td>
                   <td className="text-ink-2" title={s.store_name ?? undefined}>
-                    {storeAbbr(s.store_name, s.store_code) ?? "—"}
+                    {storeAbbr(s.store_name) ?? "—"}
                   </td>
                   <td className="num text-ink-2">
                     {formatDate(s.start_date)} – {formatDate(s.end_date)}

@@ -70,7 +70,7 @@ export default async function DashboardPage() {
     .sort((a, b) => (a.end_date! > b.end_date! ? -1 : 1));
 
   // 门店：本月 + 累计
-  const storeName = new Map(stores.map((s) => [s.id, storeAbbr(s.name, s.code)!]));
+  const storeName = new Map(stores.map((s) => [s.id, storeAbbr(s.name)!]));
   const byStore = new Map<string, { month: number; profit: number; total: number }>();
   for (const s of subs) {
     const key = s.store_id ?? "";
@@ -242,7 +242,7 @@ export default async function DashboardPage() {
                         {emailUser(m.email)}
                       </Link>
                       <div className="text-[12px] text-ink-3">
-                        {m.service_name ?? "—"} · {storeAbbr(m.store_name, m.store_code) ?? "未指定门店"}
+                        {m.service_name ?? "—"} · {storeAbbr(m.store_name) ?? "未指定门店"}
                       </div>
                     </td>
                     <td className="text-right text-[13px]">
