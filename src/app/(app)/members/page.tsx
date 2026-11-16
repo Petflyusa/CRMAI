@@ -212,15 +212,14 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
               ))}
             </ul>
             {/* 平板和电脑：表格 */}
-            <table className="data-table hidden min-w-[1100px] md:table">
+            <table className="data-table hidden min-w-[920px] md:table">
               <thead>
                 <tr>
                   <th>会员</th>
                   <th>初始密码</th>
                   <th>服务</th>
                   <th>门店</th>
-                  <th>开始</th>
-                  <th>到期</th>
+                  <th>有效期</th>
                   <th className="text-right">首付</th>
                   <th className="text-right">续费</th>
                   <th className="text-right">累计利润</th>
@@ -249,9 +248,11 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                     <td className="text-ink-2" title={m.store_name ?? undefined}>
                       {storeAbbr(m.store_name, m.store_code) ?? "—"}
                     </td>
-                    <td className="num text-ink-2">{formatDate(m.start_date)}</td>
-                    <td>
-                      <div className="num">{formatDate(m.end_date)}</div>
+                    <td className="whitespace-nowrap">
+                      <div className="num text-[13px]">
+                        <span className="text-ink-3">{formatDate(m.start_date)} – </span>
+                        {formatDate(m.end_date)}
+                      </div>
                       <StatusPill status={m.status} endDate={m.end_date} />
                     </td>
                     <td className="text-right">{amount(m.first_paid_amount, m.first_paid_currency, m.first_paid_usd)}</td>
