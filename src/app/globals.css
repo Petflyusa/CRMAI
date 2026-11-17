@@ -20,6 +20,9 @@
   --color-loss-soft: #f6e5e1;
   --color-warn: #8a5a12;
   --color-warn-soft: #f5ead6;
+  /* 剩余天数提醒：≤5 天红色，≤10 天黄色 */
+  --color-urgent: #dc2626;
+  --color-soon: #ca8a04;
 }
 
 @layer base {
