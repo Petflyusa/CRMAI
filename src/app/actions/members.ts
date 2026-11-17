@@ -22,11 +22,11 @@ async function readSubscription(fd: FormData, rates: Rates, supabase: Supabase) 
   const paid_amount = num(fd, "paid_amount", fd.get("kind") === "renewal" ? "续费金额" : "实付金额", { min: 0 })!;
   const paid_currency = currency(fd, "paid_currency");
 
-  let service: Pick<Service, "price" | "price_currency" | "cost" | "cost_currency"> | null = null;
+  let service: Pick<Service, "cost" | "cost_currency"> | null = null;
   if (service_id) {
     const { data } = await supabase
       .from("services")
-      .select("price, price_currency, cost, cost_currency")
+      .select("cost, cost_currency")
       .eq("id", service_id)
       .maybeSingle();
     service = data;
@@ -34,7 +34,7 @@ async function readSubscription(fd: FormData, rates: Rates, supabase: Supabase) 
 
   const costInput = num(fd, "cost_usd", "成本", { min: 0, required: false });
   const costUsd = costInput ?? (service ? serviceCostUsd(service, rates) : 0);
-  const p = computePrice({ paidAmount: paid_amount, paidCurrency: paid_currency, costUsd, service, rates });
+  const p = computePrice({ paidAmount: paid_amount, paidCurrency: paid_currency, costUsd, rates });
 
   return {
     service_id,
@@ -46,7 +46,7 @@ async function readSubscription(fd: FormData, rates: Rates, supabase: Supabase) 
     paid_currency,
     paid_usd: p.paidUsd,
     cost_usd: p.costUsd,
-    list_price_usd: p.listPriceUsd,
+    list_price_usd: null,
     notes: str(fd, "sub_notes"),
   };
 }

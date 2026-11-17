@@ -47,8 +47,6 @@ export async function saveService(_prev: ActionState, fd: FormData): Promise<Act
     const row = {
       name: reqStr(fd, "name", "服务名称"),
       description: str(fd, "description"),
-      price: num(fd, "price", "价格", { min: 0 })!,
-      price_currency: currency(fd, "price_currency"),
       cost: num(fd, "cost", "成本", { min: 0, required: false }) ?? 0,
       cost_currency: currency(fd, "cost_currency"),
       duration_days: Math.round(num(fd, "duration_days", "时长", { min: 1 })!),
@@ -56,7 +54,8 @@ export async function saveService(_prev: ActionState, fd: FormData): Promise<Act
     };
     const { error } = id
       ? await supabase.from("services").update(row).eq("id", id)
-      : await supabase.from("services").insert(row);
+      : // 不再使用标价，新服务记为 0
+        await supabase.from("services").insert({ ...row, price: 0, price_currency: row.cost_currency });
     if (error) throw error;
   } catch (e) {
     return { error: errorMessage(e) };

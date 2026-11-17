@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { CURRENCIES, CURRENCY_META, formatMoney, formatRate, type Currency, type Rates } from "@/lib/currency";
 import { addDays } from "@/lib/dates";
 import { storeLabel } from "@/lib/display";
-import { computePrice, serviceCostUsd, servicePriceIn } from "@/lib/pricing";
+import { computePrice, serviceCostUsd } from "@/lib/pricing";
 import type { Service, Store } from "@/lib/types";
 
 export type SubscriptionDefaults = {
@@ -67,16 +67,6 @@ export function SubscriptionFields({
     if (!endTouched && service && v) setEnd(addDays(v, service.duration_days));
   }
 
-  const listInCur = service ? servicePriceIn(service, cur, rates) : null;
-
-  /** 换币种时：如果金额还是标价，就换算成新币种的标价；手填的金额保持不动 */
-  function onCurrency(next: Currency) {
-    if (service && listInCur != null && Number(paid) === listInCur) {
-      setPaid(String(servicePriceIn(service, next, rates)));
-    }
-    setCur(next);
-  }
-
   const result = useMemo(() => {
     const p = Number(paid);
     if (paid === "" || !Number.isFinite(p)) return null;
@@ -84,10 +74,9 @@ export function SubscriptionFields({
       paidAmount: p,
       paidCurrency: cur,
       costUsd: Number(cost) || 0,
-      service,
       rates,
     });
-  }, [paid, cur, cost, service, rates]);
+  }, [paid, cur, cost, rates]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
@@ -108,7 +97,7 @@ export function SubscriptionFields({
             <option value="">选择服务</option>
             {services.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} · {formatMoney(s.price, s.price_currency)} / {s.duration_days}天
+                {s.name} · {s.duration_days}天
               </option>
             ))}
           </select>
@@ -172,7 +161,7 @@ export function SubscriptionFields({
               name="paid_currency"
               className="input num w-[92px] shrink-0 rounded-r-none border-r-0"
               value={cur}
-              onChange={(e) => onCurrency(e.target.value as Currency)}
+              onChange={(e) => setCur(e.target.value as Currency)}
             >
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>
@@ -187,19 +176,10 @@ export function SubscriptionFields({
               className="input num rounded-l-none"
               value={paid}
               onChange={(e) => setPaid(e.target.value)}
-              placeholder={listInCur != null ? String(listInCur) : "0.00"}
+              placeholder="0.00"
               required
             />
           </div>
-          {listInCur != null && (
-            <button
-              type="button"
-              className="mt-1.5 text-[12px] text-ink-3 underline-offset-2 hover:text-ink hover:underline"
-              onClick={() => setPaid(String(listInCur))}
-            >
-              按标价填入 {formatMoney(listInCur, cur)}
-            </button>
-          )}
         </div>
         <div>
           <label className="field-label" htmlFor="paid_at">
@@ -277,17 +257,6 @@ function ProfitPreview({
           formatMoney(Number(paid), cur),
         ],
         ["折合美元", formatMoney(result.paidUsd, "USD")],
-        ["服务标价", result.listPriceUsd == null ? "—" : formatMoney(result.listPriceUsd, "USD")],
-        [
-          "与标价差额",
-          result.vsListUsd == null ? (
-            "—"
-          ) : (
-            <span className={result.vsListUsd < 0 ? "text-loss" : "text-ink"}>
-              {formatMoney(result.vsListUsd, "USD", { sign: true })}
-            </span>
-          ),
-        ],
         ["成本", formatMoney(-result.costUsd, "USD")],
       ]
     : [];

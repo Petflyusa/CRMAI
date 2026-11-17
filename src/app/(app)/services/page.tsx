@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { deleteService, saveService } from "@/app/actions/catalog";
 import { FormDialog } from "@/components/dialog";
 import { ConfirmForm } from "@/components/form-bits";
-import { Empty, Money, PageHeader, Profit } from "@/components/ui";
-import { CURRENCIES, convert, type Currency } from "@/lib/currency";
+import { Empty, Money, PageHeader } from "@/components/ui";
+import { CURRENCIES, type Currency } from "@/lib/currency";
 import { listServices } from "@/lib/data";
 import { getRates } from "@/lib/fx";
-import { getDisplayCurrency } from "@/lib/prefs";
 import { serviceCostUsd } from "@/lib/pricing";
 import type { Service } from "@/lib/types";
 
@@ -18,14 +17,12 @@ function MoneyInput({
   label,
   amount,
   currency,
-  required,
 }: {
   name: string;
   currencyName: string;
   label: string;
   amount?: number;
   currency?: Currency;
-  required?: boolean;
 }) {
   return (
     <div role="group" aria-label={label}>
@@ -45,7 +42,6 @@ function MoneyInput({
           name={name}
           aria-label={`${label}金额`}
           inputMode="decimal"
-          required={required}
           defaultValue={amount ?? ""}
           placeholder="0.00"
           className="input num rounded-l-none"
@@ -63,23 +59,14 @@ function ServiceFields({ service }: { service?: Service }) {
         <span className="field-label">服务名称</span>
         <input name="name" required className="input" defaultValue={service?.name} />
       </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MoneyInput
-          name="price"
-          currencyName="price_currency"
-          label="标价"
-          amount={service?.price}
-          currency={service?.price_currency}
-          required
-        />
-        <MoneyInput
-          name="cost"
-          currencyName="cost_currency"
-          label="成本"
-          amount={service?.cost}
-          currency={service?.cost_currency}
-        />
-      </div>
+      <MoneyInput
+        name="cost"
+        currencyName="cost_currency"
+        label="成本"
+        amount={service?.cost}
+        currency={service?.cost_currency}
+      />
+      <p className="-mt-2 text-[12px] text-ink-3">每位客户的实付金额不同，录入会员时再填写，利润 = 实付 − 成本</p>
       <label className="block">
         <span className="field-label">有效期（天）</span>
         <input
@@ -110,14 +97,13 @@ function ServiceFields({ service }: { service?: Service }) {
 }
 
 export default async function ServicesPage() {
-  const [services, fx, display] = await Promise.all([listServices(), getRates(), getDisplayCurrency()]);
-  const toDisplay = (amount: number, from: Currency) => convert(amount, from, display, fx.rates);
+  const [services, fx] = await Promise.all([listServices(), getRates()]);
 
   return (
     <>
       <PageHeader
         title="服务"
-        description={`价格和成本可用任意币种录入，系统按实时汇率折算 · 折算列以 ${display} 展示`}
+        description={"成本可用任意币种录入，系统按实时汇率折算成美元计算利润"}
         actions={
           <FormDialog title="新增服务" trigger="新增服务" action={saveService} submitLabel="保存服务">
             <ServiceFields />
@@ -127,23 +113,19 @@ export default async function ServicesPage() {
 
       <div className="panel overflow-x-auto">
         {services.length === 0 ? (
-          <Empty title="还没有服务" hint="添加服务和价格后，就可以录入会员了" />
+          <Empty title="还没有服务" hint="添加服务和成本后，就可以录入会员了" />
         ) : (
-          <table className="data-table min-w-[860px]">
+          <table className="data-table min-w-[620px]">
             <thead>
               <tr>
                 <th>服务</th>
                 <th className="text-right">有效期</th>
-                <th className="text-right">标价</th>
                 <th className="text-right">成本</th>
-                <th className="text-right">标价毛利（{display}）</th>
                 <th className="w-px" />
               </tr>
             </thead>
             <tbody>
               {services.map((s) => {
-                const priceD = toDisplay(s.price, s.price_currency);
-                const costD = toDisplay(s.cost, s.cost_currency);
                 return (
                   <tr key={s.id}>
                     <td>
@@ -155,23 +137,12 @@ export default async function ServicesPage() {
                     </td>
                     <td className="num text-right text-ink-2">{s.duration_days} 天</td>
                     <td className="text-right">
-                      <Money value={s.price} currency={s.price_currency} />
-                      {s.price_currency !== display && (
-                        <div className="text-[12px] text-ink-3">
-                          ≈ <Money value={priceD} currency={display} />
-                        </div>
-                      )}
-                    </td>
-                    <td className="text-right">
                       <Money value={s.cost} currency={s.cost_currency} />
                       {s.cost_currency !== "USD" && (
                         <div className="text-[12px] text-ink-3">
                           ≈ <Money value={serviceCostUsd(s, fx.rates)} currency="USD" />
                         </div>
                       )}
-                    </td>
-                    <td className="text-right">
-                      <Profit value={priceD - costD} currency={display} />
                     </td>
                     <td>
                       <div className="flex justify-end gap-1">

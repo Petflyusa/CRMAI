@@ -20,10 +20,9 @@
 - 汇率以 USD 为基准：`1 USD = rates[CAD] CAD = rates[CNY] CNY`。
 - 成本默认取服务成本（按服务成本的币种折算成 USD），录入时可以手动改。
 - 每笔付款都会保存当时的汇率快照（`fx_snapshot`），以后汇率变动不会改变历史利润。编辑付款时默认沿用原汇率，勾选「按最新汇率重新计算」才会换成当前汇率。
-- 页面上还会显示「与标价差额」：实付折合 USD − 服务标价折合 USD。
 
-例：服务标价 USD 100、成本 USD 40，会员付了 CNY 700，汇率 1 USD = 6.6719 CNY
-→ 实付折合 USD 104.92，利润 USD 64.92，比标价多收 USD 4.92。
+例：服务成本 USD 40，会员付了 CNY 700，汇率 1 USD = 6.6719 CNY
+→ 实付折合 USD 104.92，利润 USD 64.92。
 
 汇率来源：[Frankfurter](https://frankfurter.dev)（欧洲央行数据，免费、无需 key），失败时自动改用 [ExchangeRate-API](https://open.er-api.com)。
 
