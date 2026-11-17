@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeRates } from "./currency";
 import { createClient } from "./supabase/server";
 import type { MemberOverview, Service, Store, Subscription } from "./types";
 
@@ -57,6 +58,7 @@ export async function listSubscriptions(filter: { memberId?: string } = {}) {
     cost_usd: Number(s.cost_usd),
     profit_usd: Number(s.profit_usd),
     list_price_usd: s.list_price_usd == null ? null : Number(s.list_price_usd),
+    fx_snapshot: { ...s.fx_snapshot, rates: normalizeRates(s.fx_snapshot?.rates) },
     service_name: services?.name ?? null,
     store_name: stores?.name ?? null,
     store_code: stores?.code ?? null,

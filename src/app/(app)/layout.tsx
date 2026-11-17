@@ -1,7 +1,7 @@
 import { signOut } from "@/app/actions/system";
 import { CurrencySwitch } from "@/components/currency-switch";
 import { Nav } from "@/components/nav";
-import { formatRate } from "@/lib/currency";
+import { CURRENCIES, formatRate } from "@/lib/currency";
 import { getRates } from "@/lib/fx";
 import { getDisplayCurrency } from "@/lib/prefs";
 import Link from "next/link";
@@ -28,8 +28,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <CurrencySwitch value={display} />
           </div>
           <Link href="/rates" className="block rounded-md text-[12px] leading-relaxed text-ink-2 hover:text-ink">
-            <span className="num block">1 USD = {formatRate(fx.rates.CAD)} CAD</span>
-            <span className="num block">1 USD = {formatRate(fx.rates.CNY)} CNY</span>
+            {CURRENCIES.filter((c) => c !== "USD").map((c) => (
+              <span key={c} className="num block">
+                1 USD = {formatRate(fx.rates[c])} {c}
+              </span>
+            ))}
             <span className={`mt-1 block text-[11px] ${fx.stale ? "text-warn" : "text-ink-3"}`}>
               {fx.stale ? "抓取失败，使用旧汇率" : `汇率日期 ${fx.date}`}
             </span>

@@ -321,9 +321,11 @@ function ProfitPreview({
         <p className="mt-4 text-[13px] text-ink-3">填写{amountLabel}金额后显示</p>
       )}
       <p className="num mt-5 text-[11px] leading-relaxed text-ink-3">
-        1 USD = {formatRate(rates.CAD)} CAD
-        <br />1 USD = {formatRate(rates.CNY)} CNY
-        <br />
+        {CURRENCIES.filter((c) => c !== "USD").map((c) => (
+          <span key={c} className={`block ${c === cur ? "text-ink-2" : ""}`}>
+            1 USD = {formatRate(rates[c])} {c}
+          </span>
+        ))}
         汇率日期 {rateDate}
       </p>
     </aside>

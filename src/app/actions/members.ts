@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Rates } from "@/lib/currency";
+import { normalizeRates, type Rates } from "@/lib/currency";
 import { today } from "@/lib/dates";
 import { currency, date, email, errorMessage, FormError, num, reqStr, str } from "@/lib/form";
 import { getRates, refreshRates, snapshotOf } from "@/lib/fx";
@@ -144,7 +144,9 @@ export async function updateMember(_prev: ActionState, fd: FormData): Promise<Ac
 
       // 默认沿用当时的汇率；勾选「按最新汇率重算」才换成当前汇率
       const useLatest = fd.get("recalc_fx") === "on";
-      const fx = useLatest ? snapshotOf(await refreshRates()) : current.fx_snapshot;
+      const fx = useLatest
+        ? snapshotOf(await refreshRates())
+        : { ...current.fx_snapshot, rates: normalizeRates(current.fx_snapshot.rates) };
       const sub = await readSubscription(fd, fx.rates, supabase);
       const { error: subError } = await supabase
         .from("subscriptions")

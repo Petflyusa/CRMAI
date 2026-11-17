@@ -157,14 +157,14 @@ export default async function DashboardPage() {
             {CURRENCIES.map((c, i) => {
               const v = mix.get(c)!.usd;
               if (!mixTotal || !v) return null;
-              const tones = ["bg-ink", "bg-accent", "bg-line-strong"];
+              const tones = ["bg-ink", "bg-accent", "bg-line-strong", "bg-gain", "bg-warn"];
               return <div key={c} className={tones[i]} style={{ width: `${(v / mixTotal) * 100}%` }} />;
             })}
           </div>
           <dl className="mt-4 space-y-3">
             {CURRENCIES.map((c, i) => {
               const m = mix.get(c)!;
-              const tones = ["bg-ink", "bg-accent", "bg-line-strong"];
+              const tones = ["bg-ink", "bg-accent", "bg-line-strong", "bg-gain", "bg-warn"];
               return (
                 <div key={c} className="flex items-baseline justify-between gap-3 text-[13px]">
                   <dt className="flex items-center gap-2 text-ink-2">

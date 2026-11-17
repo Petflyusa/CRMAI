@@ -10,6 +10,7 @@ import {
   selectableStores,
 } from "@/lib/data";
 import { addDays, formatDate, today } from "@/lib/dates";
+import { normalizeRates } from "@/lib/currency";
 import { emailUser } from "@/lib/display";
 import { getRates } from "@/lib/fx";
 import { serviceCostUsd } from "@/lib/pricing";
@@ -105,7 +106,7 @@ export async function EditMemberDialog({ memberId, closeHref }: { memberId: stri
         subscriptionKind={current?.kind ?? null}
         services={selectableServices(services, current?.service_id)}
         stores={selectableStores(stores, current?.store_id)}
-        rates={current?.fx_snapshot.rates ?? { USD: 1, CAD: 1, CNY: 1 }}
+        rates={current?.fx_snapshot.rates ?? normalizeRates(null)}
         rateDate={current?.fx_snapshot.date ?? ""}
         defaults={defaults}
         closeHref={closeHref}

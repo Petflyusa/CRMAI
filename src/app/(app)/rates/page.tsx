@@ -75,8 +75,11 @@ export default async function RatesPage() {
                 <tr>
                   <th>抓取时间</th>
                   <th>汇率日期</th>
-                  <th className="text-right">USD→CAD</th>
-                  <th className="text-right">USD→CNY</th>
+                  {CURRENCIES.filter((c) => c !== "USD").map((c) => (
+                    <th key={c} className="text-right">
+                      USD→{c}
+                    </th>
+                  ))}
                   <th>来源</th>
                 </tr>
               </thead>
@@ -85,8 +88,11 @@ export default async function RatesPage() {
                   <tr key={h.id}>
                     <td className="num text-ink-2">{fmtTime(h.fetched_at)}</td>
                     <td className="num">{h.rate_date}</td>
-                    <td className="num text-right">{formatRate(Number(h.rates.CAD))}</td>
-                    <td className="num text-right">{formatRate(Number(h.rates.CNY))}</td>
+                    {CURRENCIES.filter((c) => c !== "USD").map((c) => (
+                      <td key={c} className="num text-right">
+                        {h.rates[c] == null ? <span className="text-ink-3">—</span> : formatRate(Number(h.rates[c]))}
+                      </td>
+                    ))}
                     <td className="text-[12px] text-ink-3">{h.source}</td>
                   </tr>
                 ))}
